@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GP OBRA | Command Center Premium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap');
+        :root { --bg-dark: #0a0b0d; --card-dark: #14161a; --pink-neon: #ffb7c5; --pink-glow: rgba(255, 183, 197, 0.3); }
+        body { font-family: 'Montserrat', sans-serif; background-color: var(--bg-dark); color: #ffffff; overflow-x: hidden; }
+        .border-critica { border-left: 6px solid #ef4444 !important; }
+        .border-media { border-left: 6px solid #f59e0b !important; }
+        .border-planeada { border-left: 6px solid #10b981 !important; }
+        .urg-btn-active { background: rgba(255, 255, 255, 0.1); border-color: white !important; transform: scale(1.05); }
+        .nav-top { background: rgba(10, 11, 13, 0.9); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); z-index: 100; }
+        .nav-btn { color: #64748b; font-size: 0.9rem; letter-spacing: 0.12em; font-weight: 700; transition: all 0.3s; }
+        .nav-btn.active { color: var(--pink-neon); text-shadow: 0 0 10px var(--pink-glow); }
+        .card-main { background: var(--card-dark); border-radius: 2rem; border: 1px solid rgba(255, 255, 255, 0.03); }
+        .tab-content { display: none; animation: fadeInUp 0.5s ease forwards; }
+        .tab-content.active { display: block; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        #chat-widget { position: fixed; bottom: 110px; right: 30px; width: 380px; height: 550px; z-index: 50; display: none; flex-direction: column; }
+        .pink-btn { background: var(--pink-neon); color: #000; font-weight: 900; text-transform: uppercase; transition: 0.3s; }
+        .tech-layer { pointer-events: none; mix-blend-mode: multiply; transition: opacity 0.4s ease; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
+        .hotspot { position: absolute; width: 22px; height: 22px; background: var(--pink-neon); border-radius: 50%; cursor: pointer; z-index: 60; transform: translate(-50%, -50%); animation: pulse 2s infinite; border: 2px solid white; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,183,197,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,183,197,0); } 100% { box-shadow: 0 0 0 0 rgba(255,183,197,0); } }
+        @media (max-width: 768px) {
+            #nav-items { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(17, 17, 17, 0.95); display: flex; justify-content: space-around; padding: 1.2rem; z-index: 1000; }
+            #chat-widget { width: 95% !important; right: 2.5% !important; bottom: 90px !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay" class="fixed inset-0 bg-black flex items-center justify-center z-[2000]">
+        <div class="card-main p-12 max-w-md w-full text-center">
+            <h1 class="text-4xl font-900 mb-2 italic">GP<span style="color: var(--pink-neon)">:OBRA</span></h1>
+            <p class="text-[10px] text-gray-500 uppercase tracking-[0.6em] mb-12">Command Center</p>
+            <input type="email" id="login-email" placeholder="E-MAIL" class="w-full p-5 rounded-2xl mb-4 bg-white/5 border-none text-center font-bold outline-none">
+            <input type="password" id="login-pass" placeholder="SENHA" class="w-full p-5 rounded-2xl mb-8 bg-white/5 border-none text-center outline-none">
+            <button onclick="realizarLogin()" class="w-full pink-btn p-5 rounded-2xl shadow-lg mb-4">Acessar Painel</button>
+            <button onclick="esqueciSenha()" class="text-[10px] text-pink-300 uppercase font-black tracking-widest hover:underline">Esqueci minha senha</button>
+        </div>
+    </div>
+
+    <div id="app-content" class="hidden min-h-screen flex flex-col">
+        <header class="nav-top sticky top-0 px-10 py-6 flex justify-between items-center">
+            <h1 class="text-2xl font-900 italic">GP<span style="color: var(--pink-neon)">:OBRA</span></h1>
+            <div class="flex items-center gap-4">
+                <div class="text-right hidden sm:block">
+                    <p id="user-name-top" class="text-[12px] font-bold uppercase"></p>
+                    <p id="user-role-badge" class="text-[9px] text-pink-300 font-black uppercase tracking-widest"></p>
+                </div>
+                <img id="user-avatar-img" onclick="abrirModal('modal-perfil')" src="https://ui-avatars.com/api/?background=ffb7c5&color=000&name=U" class="w-10 h-10 rounded-full border-2 border-pink-300 cursor-pointer object-cover">
+            </div>
+        </header>
+
+        <nav id="nav-items" class="flex justify-center gap-10 py-4 border-b border-white/5"></nav>
+
+        <main class="flex-1 p-8 lg:p-12 max-w-[1600px] mx-auto w-full">
+            <section id="tab-projeto3d" class="tab-content active">
+                <div class="flex justify-between items-center mb-10">
+                    <h2 class="text-5xl font-900 uppercase italic tracking-tighter">Visão Geral</h2>
+                    <button id="btn-add-ponto" onclick="modoAdicionarPonto()" class="hidden bg-blue-600 px-6 py-3 rounded-xl text-[10px] font-black uppercase">Novo Ponto Raio-X</button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    <div class="lg:col-span-2 card-main relative bg-white/5 flex items-center justify-center p-4 min-h-[500px] overflow-hidden">
+                        <div id="map-container" class="relative w-full h-full flex items-center justify-center">
+                            <img id="planta-base" src="https://exvsnqybuvkabavwyrsu.supabase.co/storage/v1/object/public/projeto-arquivos/planta%20base.png" class="max-w-full max-h-[600px] object-contain z-10">
+                            <img id="layer-hidraulica" src="https://exvsnqybuvkabavwyrsu.supabase.co/storage/v1/object/public/projeto-arquivos/hidraulica%20(2).jpg" class="tech-layer opacity-0 z-20">
+                            <img id="layer-eletrica" src="https://exvsnqybuvkabavwyrsu.supabase.co/storage/v1/object/public/projeto-arquivos/eletrica.jpg" class="tech-layer opacity-0 z-30">
+                            <img id="layer-clima" src="https://exvsnqybuvkabavwyrsu.supabase.co/storage/v1/object/public/projeto-arquivos/climatizaca.jpg" class="tech-layer opacity-0 z-40">
+                            <div id="hotspots-container" class="absolute inset-0 z-50"></div>
+                        </div>
+                        <div class="absolute top-6 right-6 z-50 bg-black/80 backdrop-blur-xl p-6 rounded-[2rem] border border-white/10">
+                            <p class="text-[9px] font-black text-pink-300 mb-4 uppercase">Filtros Técnicos</p>
+                            <div class="flex flex-col gap-3">
+                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold"><input type="checkbox" onchange="toggleLayer('layer-hidraulica', this)"> Hidráulica</label>
+                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold"><input type="checkbox" onchange="toggleLayer('layer-eletrica', this)"> Elétrica</label>
+                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold"><input type="checkbox" onchange="toggleLayer('layer-clima', this)"> Clima</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-main p-8 border-r-8 border-pink-300/20">
+                        <h3 class="text-pink-200 text-[11px] font-900 uppercase mb-8">Cronograma</h3>
+                        <div id="cronograma-lista" class="space-y-6"></div>
+                        <div class="mt-10 pt-6 border-t border-white/5">
+                            <p class="text-[11px] text-gray-500 uppercase font-bold">Total Concluído</p>
+                            <p id="progresso-geral-num" class="text-3xl font-black text-pink-300 italic">0%</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-financeiro" class="tab-content">
+                <div class="flex justify-between items-center mb-10">
+                    <h2 class="text-5xl font-900 uppercase italic">Financeiro</h2>
+                    <div class="flex items-center gap-6">
+                        <button onclick="gerarRelatorioFinanceiro()" class="bg-white/10 border border-white/10 px-6 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-white/20">Gerar Relatório</button>
+                        <h3 id="total-financeiro" class="text-3xl font-black text-pink-300 italic">R$ 0,00</h3>
+                    </div>
+                </div>
+                <div class="card-main overflow-hidden">
+                    <table class="w-full text-left" id="table-financeiro">
+                        <thead class="bg-white/5 text-[10px] uppercase font-black">
+                            <tr><th class="p-6">Data</th><th class="p-6">Descrição</th><th class="p-6">Valor</th><th class="p-6">Anexo</th></tr>
+                        </thead>
+                        <tbody id="lista-financeiro-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="tab-diario" class="tab-content">
+                <div class="flex justify-between items-center mb-10">
+                    <h2 class="text-5xl font-900 uppercase italic">Diário</h2>
+                    <button id="btn-novo-relato" onclick="abrirModal('modal-diario')" class="hidden pink-btn px-10 py-4 rounded-xl">Novo Relato</button>
+                </div>
+                <div id="feed-diario" class="grid grid-cols-1 md:grid-cols-3 gap-10"></div>
+            </section>
+
+            <section id="tab-pedidos" class="tab-content">
+                <div class="flex justify-between items-center mb-10">
+                    <h2 class="text-5xl font-900 uppercase italic">Materiais</h2>
+                    <div class="flex gap-4">
+                        <button onclick="gerarRelatorioMateriais()" class="bg-white/10 border border-white/10 px-6 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-white/20">Gerar Relatório</button>
+                        <button id="btn-novo-pedido" onclick="abrirModal('modal-pedido')" class="hidden pink-btn px-10 py-4 rounded-xl">Solicitar</button>
+                    </div>
+                </div>
+                <div id="lista-pedidos-container" class="grid grid-cols-1 md:grid-cols-4 gap-8"></div>
+            </section>
+        </main>
+    </div>
+
+    <div id="modal-finalizar-compra" class="fixed inset-0 bg-black/95 z-[5000] hidden flex items-center justify-center p-6">
+        <div class="card-main p-10 max-w-md w-full">
+            <h3 class="text-2xl font-black text-pink-200 uppercase mb-2 italic">Aprovar & Lançar</h3>
+            <p id="label-material-aprov" class="text-[10px] text-gray-500 uppercase font-black mb-8"></p>
+            
+            <div class="space-y-4">
+                <input type="number" id="valor-material-final" placeholder="VALOR PAGO (R$)" class="w-full p-5 bg-white/5 rounded-2xl outline-none text-center text-xl font-bold text-pink-300">
+                
+                <input type="file" id="cupom-material-file" class="hidden" onchange="previewCupomMaterial(event)">
+                <button onclick="document.getElementById('cupom-material-file').click()" class="w-full p-5 border-2 border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase text-gray-400 hover:border-pink-300/30 transition-all">
+                    Anexar Cupom Fiscal
+                </button>
+                <div id="status-cupom" class="hidden text-[9px] text-center text-green-400 font-black uppercase">Cupom anexado com sucesso! ✓</div>
+            </div>
+
+            <div class="flex gap-4 mt-8">
+                <button onclick="fecharModal('modal-finalizar-compra')" class="flex-1 text-gray-500 font-bold uppercase text-[10px]">Cancelar</button>
+                <button onclick="confirmarAprovacaoComFinanceiro()" class="flex-1 pink-btn p-5 rounded-2xl">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-bubble" onclick="toggleChat()" class="fixed bottom-8 right-8 w-16 h-16 bg-[#ffb7c5] rounded-2xl flex items-center justify-center cursor-pointer z-[110] shadow-2xl">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+    </div>
+
+    <div id="chat-widget" class="card-main flex flex-col overflow-hidden border border-pink-300/20">
+        <div class="p-5 bg-pink-300 text-black flex justify-between items-center font-900 uppercase text-[11px]">
+            <span>Canal de Obra</span>
+            <button onclick="toggleChat()">✕</button>
+        </div>
+        <div id="chat-messages" class="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-black/20"></div>
+        <div class="p-4 bg-white/5 flex gap-3">
+            <input type="file" id="chat-photo" class="hidden" onchange="enviarFotoChat(event)">
+            <button onclick="document.getElementById('chat-photo').click()" class="text-pink-300">📷</button>
+            <input type="text" id="chat-input" placeholder="Mensagem..." class="flex-1 bg-transparent outline-none text-sm">
+            <button onclick="enviarMensagemChat()" class="text-pink-300 font-bold">ENVIAR</button>
+        </div>
+    </div>
+
+    <div id="modal-perfil" class="fixed inset-0 bg-black/95 z-[4000] hidden flex items-center justify-center p-6">
+        <div class="card-main p-10 max-sm w-full text-center">
+            <img id="modal-user-img" src="" class="w-24 h-24 rounded-full mx-auto mb-4 border-2 border-pink-300 object-cover">
+            <p id="modal-user-email" class="text-xs text-gray-500 mb-8"></p>
+            <div class="space-y-3 mb-8">
+                <button onclick="document.getElementById('file-perfil').click()" class="w-full p-4 bg-white/5 rounded-xl text-[10px] font-black uppercase">Alterar Foto</button>
+                <input type="file" id="file-perfil" class="hidden" onchange="atualizarFotoPerfil(event)">
+                <div class="pt-4 border-t border-white/10">
+                    <p class="text-[9px] text-gray-500 uppercase mb-2">Segurança</p>
+                    <input type="password" id="nova-senha-input" placeholder="Nova Senha" class="w-full p-4 bg-white/5 rounded-xl outline-none text-xs mb-2">
+                    <button onclick="atualizarSenha()" class="w-full p-4 bg-pink-300/10 text-pink-300 rounded-xl text-[10px] font-black uppercase">Trocar Senha</button>
+                </div>
+            </div>
+            <button onclick="sairSistema()" class="w-full p-4 bg-red-500/10 text-red-500 rounded-xl text-[10px] font-black uppercase">Sair</button>
+            <button onclick="fecharModal('modal-perfil')" class="mt-4 text-gray-500 text-[10px] uppercase">Fechar</button>
+        </div>
+    </div>
+
+    <div id="modal-raiox" class="fixed inset-0 bg-black/98 z-[6000] hidden flex flex-col items-center justify-center p-6">
+        <button onclick="fecharModal('modal-raiox')" class="absolute top-10 right-10 text-pink-300 font-black">FECHAR [X]</button>
+        <h3 id="raiox-titulo" class="text-2xl font-black text-pink-200 mb-8 italic uppercase"></h3>
+        <img id="raiox-img" src="" class="max-w-4xl w-full rounded-3xl shadow-2xl border-2 border-pink-300/20">
+    </div>
+
+    <div id="modal-editar-progresso" class="fixed inset-0 bg-black/95 z-[5000] hidden flex items-center justify-center p-6">
+        <div class="card-main p-10 max-sm w-full text-center">
+            <h3 id="edit-etapa-nome" class="text-xl font-black text-pink-200 uppercase mb-4">Etapa</h3>
+            <input type="range" id="edit-etapa-range" min="0" max="100" class="w-full accent-pink-300 mb-4" oninput="document.getElementById('edit-val-display').innerText = this.value + '%'">
+            <p id="edit-val-display" class="text-5xl font-black italic mb-10">0%</p>
+            <input type="hidden" id="edit-etapa-id">
+            <div class="flex gap-4">
+                <button onclick="fecharModal('modal-editar-progresso')" class="flex-1 text-gray-500 font-bold uppercase text-[10px]">Cancelar</button>
+                <button onclick="salvarNovoProgresso()" class="flex-1 pink-btn p-4 rounded-xl">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-diario" class="fixed inset-0 bg-black/95 z-[3000] hidden flex items-center justify-center p-6">
+        <div class="card-main p-10 max-w-lg w-full">
+            <h3 class="text-2xl font-bold mb-6 text-pink-200 italic uppercase">Novo Relato</h3>
+            <textarea id="texto-diario" class="w-full h-44 bg-white/5 rounded-2xl p-5 mb-4 outline-none text-white" placeholder="O que foi feito hoje?"></textarea>
+            <input type="file" id="file-diario-obra" class="hidden" onchange="previewFotoDiario(event)">
+            <button onclick="document.getElementById('file-diario-obra').click()" class="w-full p-4 border border-dashed border-white/20 rounded-xl mb-4 text-[10px] text-gray-400 uppercase font-black">Anexar Foto</button>
+            <div class="flex gap-4">
+                <button onclick="fecharModal('modal-diario')" class="flex-1 text-gray-500 font-bold uppercase text-[12px]">Cancelar</button>
+                <button onclick="salvarDiarioNoBanco()" class="flex-1 pink-btn p-5 rounded-xl">Publicar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-pedido" class="fixed inset-0 bg-black/95 z-[3000] hidden flex items-center justify-center p-6">
+        <div class="card-main p-10 max-w-lg w-full">
+            <h3 class="text-2xl font-bold mb-6 text-pink-200 italic uppercase">Solicitar Material</h3>
+            <input type="text" id="mat-nome" placeholder="NOME DO MATERIAL" class="w-full p-4 mb-4 bg-white/5 rounded-xl outline-none text-white">
+            <input type="text" id="mat-qtd" placeholder="QUANTIDADE" class="w-full p-4 mb-4 bg-white/5 rounded-xl outline-none text-white">
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <button onclick="setUrgencia('critica', this)" class="urg-btn p-3 rounded-xl border border-red-500/30 text-red-500 text-[10px] font-black uppercase">Crítica</button>
+                <button onclick="setUrgencia('media', this)" class="urg-btn p-3 rounded-xl border border-yellow-500/30 text-yellow-500 text-[10px] font-black uppercase">Média</button>
+                <button onclick="setUrgencia('planeada', this)" class="urg-btn p-3 rounded-xl border border-green-500/30 text-green-500 text-[10px] font-black uppercase urg-btn-active">Planeada</button>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="fecharModal('modal-pedido')" class="flex-1 text-gray-500 font-bold uppercase text-[12px]">Voltar</button>
+                <button onclick="enviarSolicitacaoMaterial()" class="flex-1 pink-btn p-5 rounded-xl">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPA_URL = "https://exvsnqybuvkabavwyrsu.supabase.co";
+        const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4dnNucXlidXZrYWJhdnd5cnN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4OTg0MDEsImV4cCI6MjA4NjQ3NDQwMX0.LQX2wS5XyAj1GAZmDqR4uXtVDu36nMcGGy2RKtpkJ5c";
+        const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+        let userState = { email: '', role: '', avatar: null, fotoBase64: null };
+        let urgenciaSelecionada = 'planeada';
+        let pedidoParaAprovar = null;
+        let cupomBase64 = null;
+
+        // --- AUTH ---
+        async function realizarLogin() {
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const pass = document.getElementById('login-pass').value;
+            if(pass.length >= 3) {
+                userState.email = email;
+                userState.role = (email.includes('eng') || email.includes('mestre')) ? 'ADMIN' : 'CLIENTE';
+                localStorage.setItem('gp_obra_session', JSON.stringify(userState));
+                ativarApp();
+            }
+        }
+
+        async function esqueciSenha() {
+            const email = prompt("Digite seu e-mail para recuperação:");
+            if(email) {
+                const { error } = await sb.auth.resetPasswordForEmail(email);
+                if (error) alert("Erro: " + error.message);
+                else alert("E-mail de recuperação enviado!");
+            }
+        }
+
+        async function atualizarSenha() {
+            const nova = document.getElementById('nova-senha-input').value;
+            if(nova.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.");
+            const { error } = await sb.auth.updateUser({ password: nova });
+            if (error) alert("Erro ao atualizar: " + error.message);
+            else { alert("Senha atualizada com sucesso!"); document.getElementById('nova-senha-input').value = ''; }
+        }
+
+        function ativarApp() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('app-content').classList.remove('hidden');
+            document.getElementById('user-name-top').innerText = userState.email.split('@')[0];
+            document.getElementById('user-role-badge').innerText = userState.role + " ACCESS";
+            if(userState.avatar) {
+                document.getElementById('user-avatar-img').src = userState.avatar;
+                document.getElementById('modal-user-img').src = userState.avatar;
+            }
+            if(userState.role === 'ADMIN') {
+                document.getElementById('btn-novo-relato').classList.remove('hidden');
+                document.getElementById('btn-novo-pedido').classList.remove('hidden');
+                document.getElementById('btn-add-ponto').classList.remove('hidden');
+            }
+            iniciarMenu(); carregarDiario(); carregarPedidos(); carregarChat(); carregarCronograma(); carregarHotspots(); carregarFinanceiro(); inscreverRealtime();
+        }
+
+        // --- NAVEGAÇÃO ---
+        function iniciarMenu() {
+            const itens = [{id:'projeto3d', l:'PROJETO'}, {id:'financeiro', l:'FINANCEIRO'}, {id:'diario', l:'DIÁRIO'}, {id:'pedidos', l:'MATERIAIS'}];
+            document.getElementById('nav-items').innerHTML = itens.map(m => `<button onclick="switchTab('${m.id}')" class="nav-btn" id="btn-${m.id}">${m.l}</button>`).join('');
+            switchTab('projeto3d');
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-'+id).classList.add('active');
+            if(document.getElementById('btn-'+id)) document.getElementById('btn-'+id).classList.add('active');
+        }
+
+        // --- RAIO X (MELHORADO COM UPLOAD DIRETO) ---
+        async function carregarHotspots() {
+            const { data } = await sb.from('pontos_tecnicos').select('*');
+            if(data) {
+                document.getElementById('hotspots-container').innerHTML = data.map(p => `
+                    <div class="hotspot" style="left: ${p.pos_x}%; top: ${p.pos_y}%" onclick="abrirRaioX('${p.nome_comodo}', '${p.url_foto_interna}')"></div>
+                `).join('');
+            }
+        }
+
+        function modoAdicionarPonto() {
+            alert("Clique na planta para marcar o novo ponto técnico.");
+            const map = document.getElementById('map-container');
+            map.onclick = async (e) => {
+                const rect = map.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                const nome = prompt("Nome do Cômodo (ex: Cozinha):");
+                if(!nome) return;
+
+                // Abre o seletor de arquivos/câmera
+                const input = document.createElement('input');
+                input.type = 'file'; input.accept = 'image/*';
+                input.onchange = (imgEvent) => {
+                    const reader = new FileReader();
+                    reader.onload = async (f) => {
+                        await sb.from('pontos_tecnicos').insert([{ 
+                            nome_comodo: nome, 
+                            url_foto_interna: f.target.result, 
+                            pos_x: x.toFixed(2), 
+                            pos_y: y.toFixed(2) 
+                        }]);
+                        carregarHotspots();
+                        alert("Ponto técnico salvo com sucesso!");
+                    };
+                    reader.readAsDataURL(imgEvent.target.files[0]);
+                };
+                input.click();
+                map.onclick = null;
+            };
+        }
+
+        function abrirRaioX(tit, url) { document.getElementById('raiox-titulo').innerText = tit; document.getElementById('raiox-img').src = url; abrirModal('modal-raiox'); }
+
+        function toggleLayer(layerId, checkbox) {
+            const layers = ['layer-hidraulica', 'layer-eletrica', 'layer-clima'];
+            layers.forEach(l => document.getElementById(l).style.opacity = "0");
+            if (checkbox.checked) {
+                document.getElementById(layerId).style.opacity = "1";
+                document.getElementById('planta-base').style.opacity = "0.2";
+            } else { document.getElementById('planta-base').style.opacity = "1"; }
+        }
+
+        // --- CHAT (CORREÇÃO DE ENVIO EM TEMPO REAL PARA TODOS) ---
+        function toggleChat() { 
+            const c = document.getElementById('chat-widget'); 
+            c.style.display = c.style.display === 'flex' ? 'none' : 'flex'; 
+            if(c.style.display === 'flex') { const m = document.getElementById('chat-messages'); m.scrollTop = m.scrollHeight; }
+        }
+
+        async function carregarChat() { 
+            const { data } = await sb.from('chat_mensagens').select('*').order('created_at', { ascending: true }); 
+            if (data) { 
+                document.getElementById('chat-messages').innerHTML = ''; 
+                data.forEach(msg => renderMsg(msg)); 
+            } 
+        }
+
+        async function enviarMensagemChat() {
+            const i = document.getElementById('chat-input'); if(!i.value.trim()) return;
+            const novaMsg = { autor: userState.email, mensagem: i.value.trim() };
+            await sb.from('chat_mensagens').insert([novaMsg]);
+            i.value = '';
+        }
+
+        async function enviarFotoChat(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                await sb.from('chat_mensagens').insert([{ autor: userState.email, midia_url: event.target.result }]);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderMsg(msg) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            const isMe = msg.autor === userState.email;
+            div.className = isMe ? "self-end bg-pink-300 text-black p-3 rounded-2xl ml-auto max-w-[80%]" : "self-start bg-white/5 p-3 rounded-2xl max-w-[80%]";
+            const content = msg.midia_url ? `<img src="${msg.midia_url}" class="rounded-lg max-w-full">` : `<p class="text-[12px]">${msg.mensagem}</p>`;
+            div.innerHTML = `<p class="text-[9px] opacity-50 font-black mb-1">${msg.autor.split('@')[0]}</p>${content}`;
+            container.appendChild(div); container.scrollTop = container.scrollHeight;
+        }
+
+        // --- FINANCEIRO ---
+        async function carregarFinanceiro() {
+            const { data } = await sb.from('obra_financeiro').select('*').order('created_at', {ascending: false});
+            if(data) {
+                let t = 0;
+                document.getElementById('lista-financeiro-body').innerHTML = data.map(f => {
+                    t += f.valor_pago;
+                    return `<tr class="border-b border-white/5"><td class="p-6 text-xs text-gray-500">${new Date(f.created_at).toLocaleDateString()}</td><td class="p-6 text-xs font-bold uppercase">${f.descricao}</td><td class="p-6 text-pink-300 font-black">R$ ${f.valor_pago.toLocaleString('pt-br')}</td><td class="p-6"><a href="${f.cupom_url}" target="_blank" class="text-[9px] bg-white/5 p-2 rounded">VER</a></td></tr>`;
+                }).join('');
+                document.getElementById('total-financeiro').innerText = `R$ ${t.toLocaleString('pt-br')}`;
+            }
+        }
+
+        function gerarRelatorioFinanceiro() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("RELATÓRIO FINANCEIRO - GP OBRA", 14, 15);
+            doc.autoTable({ html: '#table-financeiro', startY: 25, theme: 'striped', headStyles: { fillColor: [255, 183, 197], textColor: [0, 0, 0] } });
+            doc.save('Financeiro_Obra.pdf');
+        }
+
+        // --- CRONOGRAMA ---
+        async function carregarCronograma() {
+            const { data } = await sb.from('obra_cronograma').select('*').order('ordem', { ascending: true });
+            if (data) {
+                let soma = 0;
+                document.getElementById('cronograma-lista').innerHTML = data.map(item => {
+                    soma += item.progresso;
+                    return `<div onclick="${userState.role === 'ADMIN' ? `abrirEditorProgresso(${item.id}, '${item.etapa}', ${item.progresso})` : ''}" class="cursor-pointer">
+                        <div class="flex justify-between mb-1"><span class="text-[10px] uppercase text-gray-400">${item.etapa}</span><span class="text-[10px] text-pink-300">${item.progresso}%</span></div>
+                        <div class="w-full bg-white/5 h-1 rounded-full overflow-hidden"><div class="bg-pink-300 h-full" style="width: ${item.progresso}%"></div></div>
+                    </div>`;
+                }).join('');
+                document.getElementById('progresso-geral-num').innerText = (soma / data.length).toFixed(1) + "%";
+            }
+        }
+
+        function abrirEditorProgresso(id, etapa, prog) {
+            document.getElementById('edit-etapa-id').value = id;
+            document.getElementById('edit-etapa-nome').innerText = etapa;
+            document.getElementById('edit-etapa-range').value = prog;
+            document.getElementById('edit-val-display').innerText = prog + "%";
+            abrirModal('modal-editar-progresso');
+        }
+
+        async function salvarNovoProgresso() {
+            const id = document.getElementById('edit-etapa-id').value;
+            const val = parseInt(document.getElementById('edit-etapa-range').value);
+            await sb.from('obra_cronograma').update({ progresso: val }).eq('id', id);
+            fecharModal('modal-editar-progresso'); carregarCronograma();
+        }
+
+        // --- DIÁRIO ---
+        async function carregarDiario() {
+            const { data } = await sb.from('diario_obra').select('*').order('id', { ascending: false });
+            if (data) {
+                document.getElementById('feed-diario').innerHTML = data.map(item => `<div class="card-main p-8 bg-white/[0.02]">
+                    <p class="text-[10px] font-black text-pink-300 uppercase mb-4">${item.autor.split('@')[0]} • ${new Date(item.created_at).toLocaleDateString()}</p>
+                    <p class="text-gray-300 mb-6 text-sm">${item.descricao}</p>
+                    ${item.midia_url ? `<img src="${item.midia_url}" class="w-full h-48 object-cover rounded-2xl">` : ''}
+                </div>`).join('');
+            }
+        }
+
+        async function salvarDiarioNoBanco() {
+            const t = document.getElementById('texto-diario').value; if(!t) return;
+            await sb.from('diario_obra').insert([{ autor: userState.email, descricao: t, midia_url: userState.fotoBase64 }]);
+            fecharModal('modal-diario'); carregarDiario();
+        }
+
+        function previewFotoDiario(e) { const r = new FileReader(); r.onload = (ev) => userState.fotoBase64 = ev.target.result; r.readAsDataURL(e.target.files[0]); }
+
+        // --- MATERIAIS ---
+        async function carregarPedidos() {
+            const { data } = await sb.from('pedidos_materiais').select('*').order('id', { ascending: false });
+            if (data) {
+                document.getElementById('lista-pedidos-container').innerHTML = data.map(p => `
+                    <div class="card-main p-8 bg-white/[0.02] ${p.urgencia === 'critica' ? 'border-critica' : (p.urgencia === 'media' ? 'border-media' : 'border-planeada')}">
+                        <p class="font-bold text-white uppercase text-sm">${p.material}</p>
+                        <p class="text-[11px] text-gray-500 uppercase font-black mb-4">Qtd: ${p.quantidade}</p>
+                        <span class="text-[9px] font-black px-2 py-1 bg-white/5 text-gray-400 rounded uppercase">${p.status}</span>
+                        ${userState.role === 'ADMIN' && p.status === 'pendente' ? `
+                        <div class="flex gap-2 border-t border-white/5 pt-4 mt-4">
+                            <button onclick="abrirModalAprovacaoMaterial(${p.id}, '${p.material}')" class="flex-1 bg-green-500/10 text-green-500 text-[8px] font-black py-2 rounded uppercase hover:bg-green-500 hover:text-white transition-all">Aprovar</button>
+                            <button onclick="gerirPedido(${p.id}, 'excluir')" class="flex-1 bg-red-500/10 text-red-500 text-[8px] font-black py-2 rounded uppercase hover:bg-red-500 hover:text-white transition-all">Excluir</button>
+                        </div>` : ''}
+                    </div>`).join('');
+            }
+        }
+
+        function abrirModalAprovacaoMaterial(id, material) {
+            pedidoParaAprovar = { id, material };
+            document.getElementById('label-material-aprov').innerText = "Material: " + material;
+            document.getElementById('valor-material-final').value = '';
+            document.getElementById('status-cupom').classList.add('hidden');
+            cupomBase64 = null;
+            abrirModal('modal-finalizar-compra');
+        }
+
+        function previewCupomMaterial(e) {
+            const r = new FileReader();
+            r.onload = (ev) => { cupomBase64 = ev.target.result; document.getElementById('status-cupom').classList.remove('hidden'); };
+            r.readAsDataURL(e.target.files[0]);
+        }
+
+        async function confirmarAprovacaoComFinanceiro() {
+            const valor = parseFloat(document.getElementById('valor-material-final').value);
+            if(!valor || isNaN(valor) || !cupomBase64) return alert("Informe o valor e anexe o cupom.");
+            await sb.from('pedidos_materiais').update({ status: 'aprovado' }).eq('id', pedidoParaAprovar.id);
+            await sb.from('obra_financeiro').insert([{ descricao: `COMPRA: ${pedidoParaAprovar.material}`, valor_pago: valor, cupom_url: cupomBase64 }]);
+            fecharModal('modal-finalizar-compra');
+            alert("Compra aprovada e lançada no financeiro!");
+            carregarPedidos(); carregarFinanceiro();
+        }
+
+        async function gerirPedido(id, acao) {
+            if(acao === 'excluir' && confirm("Deseja realmente excluir este pedido?")) {
+                await sb.from('pedidos_materiais').delete().eq('id', id); carregarPedidos();
+            }
+        }
+
+        async function enviarSolicitacaoMaterial() {
+            const m = document.getElementById('mat-nome').value;
+            const q = document.getElementById('mat-qtd').value;
+            if(!m || !q) return alert("Preencha material e quantidade.");
+            await sb.from('pedidos_materiais').insert([{ material: m, quantidade: q, status: 'pendente', urgencia: urgenciaSelecionada }]);
+            fecharModal('modal-pedido'); carregarPedidos();
+        }
+
+        // --- UTILITARIOS ---
+        function setUrgencia(n, btn) { urgenciaSelecionada = n; document.querySelectorAll('.urg-btn').forEach(b => b.classList.remove('urg-btn-active')); btn.classList.add('urg-btn-active'); }
+        function abrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function sairSistema() { localStorage.removeItem('gp_obra_session'); location.reload(); }
+        
+        function atualizarFotoPerfil(e) {
+            const r = new FileReader();
+            r.onload = (ev) => {
+                userState.avatar = ev.target.result;
+                localStorage.setItem('gp_obra_session', JSON.stringify(userState));
+                document.getElementById('user-avatar-img').src = userState.avatar;
+                document.getElementById('modal-user-img').src = userState.avatar;
+            };
+            r.readAsDataURL(e.target.files[0]);
+        }
+
+        function inscreverRealtime() {
+            sb.channel('global_updates')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_mensagens' }, (p) => renderMsg(p.new))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'obra_cronograma' }, () => carregarCronograma())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_materiais' }, () => carregarPedidos())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'obra_financeiro' }, () => carregarFinanceiro())
+            .subscribe();
+        }
+
+        window.onload = () => {
+            const s = localStorage.getItem('gp_obra_session');
+            if(s) { userState = JSON.parse(s); ativarApp(); }
+        };
+    </script>
+</body>
+</html>
