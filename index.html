@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0b0d">
     <title>GP OBRA | Command Center Premium</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0b0d'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='28' font-weight='700' font-style='italic' text-anchor='middle' fill='%23ffb7c5'%3EGP%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <!-- CSS do Tailwind gerado a partir deste arquivo (ver README.md para regerar) -->
     <link rel="stylesheet" href="tailwind.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- "integrity" garante que o navegador só roda as bibliotecas se forem exatamente estas versões -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.min.js" integrity="sha384-UagCvVPT5XXA0Hx+nJYUAGBFseHT9zBgpJMSebsAxl9lciTwbT+39j5VfRjdP5Tp" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" integrity="sha384-vxxMdt1K6XlME6zkLsgFrrHIeC7XIdAo1GW/uhhObjJXnymxiIi/eoMXsKJA13ZJ" crossorigin="anonymous"></script>
 
     <style>
         :root { --bg-dark: #0a0b0d; --card-dark: #14161a; --pink-neon: #ffb7c5; --pink-glow: rgba(255, 183, 197, 0.3); }
@@ -28,11 +31,13 @@
         .tab-content.active { display: block; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         #chat-bubble { position: fixed; bottom: 2rem; right: 2rem; }
-        #chat-widget { position: fixed; bottom: 110px; right: 30px; width: 380px; height: min(550px, 70vh); z-index: 120; display: none; flex-direction: column; }
+        #chat-widget { position: fixed; bottom: 110px; right: 30px; width: 380px; height: min(550px, 70vh); z-index: 1200; display: none; flex-direction: column; }
         .pink-btn { background: var(--pink-neon); color: #000; font-weight: 900; text-transform: uppercase; transition: 0.3s; }
         .pink-btn:disabled { opacity: 0.5; cursor: wait; }
         .tech-layer { pointer-events: none; mix-blend-mode: multiply; transition: opacity 0.4s ease; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; }
         .hotspot { position: absolute; width: 22px; height: 22px; background: var(--pink-neon); border-radius: 50%; cursor: pointer; z-index: 60; transform: translate(-50%, -50%); animation: pulse 2s infinite; border: 2px solid white; }
+        .marcando-ponto { cursor: crosshair; outline: 2px dashed var(--pink-neon); outline-offset: 4px; }
+        .toast { animation: fadeInUp 0.25s ease forwards; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,183,197,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,183,197,0); } 100% { box-shadow: 0 0 0 0 rgba(255,183,197,0); } }
         @media (max-width: 768px) {
             #nav-items { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(17, 17, 17, 0.95); display: flex; justify-content: space-around; gap: 0.25rem !important; padding: 1.1rem 0.5rem; z-index: 1000; border-top: 1px solid rgba(255,255,255,0.08); }
@@ -40,17 +45,20 @@
             #chat-bubble { bottom: 88px; right: 16px; width: 3.5rem; height: 3.5rem; }
             #chat-widget { width: calc(100% - 32px) !important; right: 16px !important; bottom: 156px !important; height: min(480px, 60vh); }
         }
+        @media (prefers-reduced-motion: reduce) { .tab-content, .toast, .hotspot { animation: none; } }
     </style>
 </head>
 <body>
+
+    <div id="toasts" class="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] flex flex-col gap-2 items-center pointer-events-none w-[92%] max-w-md" aria-live="polite"></div>
 
     <div id="login-overlay" class="fixed inset-0 bg-black flex items-center justify-center z-[2000] p-4">
         <form id="login-form" class="card-main p-8 sm:p-12 max-w-md w-full text-center" onsubmit="event.preventDefault(); realizarLogin();">
             <h1 class="text-4xl mb-2 italic">GP<span style="color: var(--pink-neon)">:OBRA</span></h1>
             <p class="text-[10px] text-gray-500 uppercase tracking-[0.6em] mb-12">Command Center</p>
-            <input type="email" id="login-email" autocomplete="username" placeholder="E-MAIL" required class="w-full p-5 rounded-2xl mb-4 bg-white/5 border-none text-center font-bold outline-none">
-            <input type="password" id="login-pass" autocomplete="current-password" placeholder="SENHA" required class="w-full p-5 rounded-2xl mb-4 bg-white/5 border-none text-center outline-none">
-            <p id="login-erro" class="hidden text-[11px] text-red-400 font-bold mb-4"></p>
+            <input type="email" id="login-email" autocomplete="username" placeholder="E-MAIL" aria-label="E-mail" required class="w-full p-5 rounded-2xl mb-4 bg-white/5 border-none text-center font-bold outline-none focus:ring-2 focus:ring-pink-300/40">
+            <input type="password" id="login-pass" autocomplete="current-password" placeholder="SENHA" aria-label="Senha" required class="w-full p-5 rounded-2xl mb-4 bg-white/5 border-none text-center outline-none focus:ring-2 focus:ring-pink-300/40">
+            <p id="login-erro" class="hidden text-[11px] text-red-400 font-bold mb-4" role="alert"></p>
             <button id="btn-login" type="submit" class="w-full pink-btn p-5 rounded-2xl shadow-lg mb-4 mt-4">Acessar Painel</button>
             <button type="button" onclick="esqueciSenha()" class="text-[10px] text-pink-300 uppercase font-black tracking-widest hover:underline">Esqueci minha senha</button>
         </form>
@@ -64,7 +72,7 @@
                     <p id="user-name-top" class="text-[12px] font-bold uppercase"></p>
                     <p id="user-role-badge" class="text-[9px] text-pink-300 font-black uppercase tracking-widest"></p>
                 </div>
-                <img id="user-avatar-img" onclick="abrirModal('modal-perfil')" src="https://ui-avatars.com/api/?background=ffb7c5&color=000&name=U" alt="Perfil" class="w-10 h-10 rounded-full border-2 border-pink-300 cursor-pointer object-cover">
+                <img id="user-avatar-img" onclick="abrirModal('modal-perfil')" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="Abrir perfil" class="w-10 h-10 rounded-full border-2 border-pink-300 cursor-pointer object-cover">
             </div>
         </header>
 
@@ -78,24 +86,29 @@
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-10">
                     <div class="lg:col-span-2 card-main relative bg-white/5 flex items-center justify-center p-4 min-h-[320px] md:min-h-[500px] overflow-hidden">
-                        <div id="map-container" class="relative w-full h-full flex items-center justify-center">
-                            <img id="planta-base" data-arquivo="planta%20base.png" alt="Planta base" class="max-w-full max-h-[600px] object-contain z-10">
+                        <!-- O contêiner tem exatamente o tamanho da planta: os pontos ficam no lugar certo em qualquer tela -->
+                        <div id="map-container" class="relative inline-block max-w-full">
+                            <img id="planta-base" data-arquivo="planta%20base.png" alt="Planta base" class="block relative max-w-full max-h-[600px] z-10 transition-opacity">
                             <img id="layer-hidraulica" data-arquivo="hidraulica%20(2).jpg" alt="" class="tech-layer opacity-0 z-20">
                             <img id="layer-eletrica" data-arquivo="eletrica.jpg" alt="" class="tech-layer opacity-0 z-30">
                             <img id="layer-clima" data-arquivo="climatizaca.jpg" alt="" class="tech-layer opacity-0 z-40">
                             <div id="hotspots-container" class="absolute inset-0 z-50"></div>
                         </div>
-                        <div class="absolute top-3 right-3 md:top-6 md:right-6 z-50 bg-black/80 backdrop-blur-xl p-4 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/10">
+                        <p id="planta-vazia" class="hidden text-xs text-gray-500 text-center px-6 leading-relaxed">A planta da obra ainda não foi enviada.</p>
+                        <div id="filtros-tecnicos" class="absolute top-3 right-3 md:top-6 md:right-6 z-[70] bg-black/80 backdrop-blur-xl p-4 md:p-6 rounded-2xl md:rounded-[2rem] border border-white/10">
                             <p class="text-[9px] font-black text-pink-300 mb-3 md:mb-4 uppercase">Filtros Técnicos</p>
                             <div class="flex flex-col gap-3">
-                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold"><input type="checkbox" class="layer-check" onchange="toggleLayer('layer-hidraulica', this)"> Hidráulica</label>
-                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold"><input type="checkbox" class="layer-check" onchange="toggleLayer('layer-eletrica', this)"> Elétrica</label>
-                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold"><input type="checkbox" class="layer-check" onchange="toggleLayer('layer-clima', this)"> Clima</label>
+                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold cursor-pointer"><input type="checkbox" class="layer-check" onchange="toggleLayer('layer-hidraulica', this)"> Hidráulica</label>
+                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold cursor-pointer"><input type="checkbox" class="layer-check" onchange="toggleLayer('layer-eletrica', this)"> Elétrica</label>
+                                <label class="flex items-center gap-3 text-[10px] uppercase font-bold cursor-pointer"><input type="checkbox" class="layer-check" onchange="toggleLayer('layer-clima', this)"> Clima</label>
                             </div>
                         </div>
                     </div>
                     <div class="card-main p-6 md:p-8 border-r-8 border-pink-300/20">
-                        <h3 class="text-pink-200 text-[11px] uppercase mb-8">Cronograma</h3>
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="text-pink-200 text-[11px] uppercase">Cronograma</h3>
+                            <button id="btn-nova-etapa" onclick="abrirEditorEtapa(-1)" class="hidden text-[9px] font-black uppercase text-pink-300 bg-pink-300/10 px-3 py-2 rounded-lg hover:bg-pink-300/20">+ Etapa</button>
+                        </div>
                         <div id="cronograma-lista" class="space-y-6"></div>
                         <div class="mt-10 pt-6 border-t border-white/5">
                             <p class="text-[11px] text-gray-500 uppercase font-bold">Total Concluído</p>
@@ -109,6 +122,7 @@
                 <div class="flex flex-wrap gap-4 justify-between items-center mb-8 md:mb-10">
                     <h2 class="text-3xl md:text-5xl uppercase italic">Financeiro</h2>
                     <div class="flex flex-wrap items-center gap-4 md:gap-6">
+                        <button id="btn-novo-lancamento" onclick="abrirNovoLancamento()" class="hidden pink-btn px-6 py-3 rounded-xl text-[10px]">Novo Lançamento</button>
                         <button onclick="gerarRelatorioFinanceiro()" class="bg-white/10 border border-white/10 px-6 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-white/20">Gerar Relatório</button>
                         <h3 id="total-financeiro" class="text-2xl md:text-3xl font-black text-pink-300 italic">R$ 0,00</h3>
                     </div>
@@ -116,7 +130,7 @@
                 <div class="card-main overflow-x-auto">
                     <table class="w-full min-w-[600px] text-left" id="table-financeiro">
                         <thead class="bg-white/5 text-[10px] uppercase font-black">
-                            <tr><th class="p-6">Data</th><th class="p-6">Descrição</th><th class="p-6">Valor</th><th class="p-6">Anexo</th></tr>
+                            <tr><th class="p-6">Data</th><th class="p-6">Descrição</th><th class="p-6">Valor</th><th class="p-6">Anexo</th><th class="p-6"></th></tr>
                         </thead>
                         <tbody id="lista-financeiro-body"></tbody>
                     </table>
@@ -144,53 +158,54 @@
         </main>
     </div>
 
-    <div id="modal-finalizar-compra" class="fixed inset-0 bg-black/95 z-[5000] hidden flex items-center justify-center p-4 sm:p-6">
+    <!-- Lançamento no financeiro: usado para aprovar um pedido e para despesas avulsas -->
+    <div id="modal-finalizar-compra" class="modal fixed inset-0 bg-black/95 z-[5000] hidden flex items-center justify-center p-4 sm:p-6">
         <div class="card-main p-8 sm:p-10 max-w-md w-full">
-            <h3 class="text-2xl font-black text-pink-200 uppercase mb-2 italic">Aprovar &amp; Lançar</h3>
+            <h3 id="titulo-lancamento" class="text-2xl font-black text-pink-200 uppercase mb-2 italic">Aprovar &amp; Lançar</h3>
             <p id="label-material-aprov" class="text-[10px] text-gray-500 uppercase font-black mb-8"></p>
             <div class="space-y-4">
-                <input type="number" id="valor-material-final" min="0" step="0.01" placeholder="VALOR PAGO (R$)" class="w-full p-5 bg-white/5 rounded-2xl outline-none text-center text-xl font-bold text-pink-300">
+                <input type="text" id="desc-lancamento" maxlength="120" placeholder="DESCRIÇÃO (EX: MÃO DE OBRA)" class="hidden w-full p-5 bg-white/5 rounded-2xl outline-none text-center text-sm font-bold">
+                <input type="number" id="valor-material-final" min="0" step="0.01" inputmode="decimal" placeholder="VALOR PAGO (R$)" class="w-full p-5 bg-white/5 rounded-2xl outline-none text-center text-xl font-bold text-pink-300">
                 <input type="file" id="cupom-material-file" accept="image/*,application/pdf" class="hidden" onchange="previewCupomMaterial(event)">
-                <button onclick="document.getElementById('cupom-material-file').click()" class="w-full p-5 border-2 border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase text-gray-400 hover:border-pink-300/30 transition-all">
-                    Anexar Cupom Fiscal
-                </button>
+                <button id="btn-anexar-cupom" onclick="document.getElementById('cupom-material-file').click()" class="w-full p-5 border-2 border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase text-gray-400 hover:border-pink-300/30 transition-all">Anexar Cupom Fiscal</button>
                 <div id="status-cupom" class="hidden text-[9px] text-center text-green-400 font-black uppercase">Cupom anexado com sucesso! ✓</div>
             </div>
             <div class="flex gap-4 mt-8">
                 <button onclick="fecharModal('modal-finalizar-compra')" class="flex-1 text-gray-500 font-bold uppercase text-[10px]">Cancelar</button>
-                <button id="btn-confirmar-compra" onclick="confirmarAprovacaoComFinanceiro()" class="flex-1 pink-btn p-5 rounded-2xl">Confirmar</button>
+                <button id="btn-confirmar-compra" onclick="confirmarLancamento()" class="flex-1 pink-btn p-5 rounded-2xl">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <div id="chat-bubble" onclick="toggleChat()" class="w-16 h-16 bg-[#ffb7c5] rounded-2xl flex items-center justify-center cursor-pointer z-[1100] shadow-2xl hidden">
+    <div id="chat-bubble" onclick="toggleChat()" role="button" aria-label="Abrir chat da obra" class="w-16 h-16 bg-[#ffb7c5] rounded-2xl flex items-center justify-center cursor-pointer z-[1100] shadow-2xl hidden">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+        <span id="chat-badge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black rounded-full min-w-[1.5rem] h-6 px-1 flex items-center justify-center"></span>
     </div>
 
     <div id="chat-widget" class="card-main flex flex-col overflow-hidden border border-pink-300/20">
         <div class="p-5 bg-pink-300 text-black flex justify-between items-center uppercase text-[11px]">
             <span>Canal de Obra</span>
-            <button onclick="toggleChat()">✕</button>
+            <button onclick="toggleChat()" aria-label="Fechar chat">✕</button>
         </div>
         <div id="chat-messages" class="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-black/20"></div>
         <form class="p-4 bg-white/5 flex gap-3" onsubmit="event.preventDefault(); enviarMensagemChat();">
             <input type="file" id="chat-photo" accept="image/*" class="hidden" onchange="enviarFotoChat(event)">
-            <button type="button" onclick="document.getElementById('chat-photo').click()" class="text-pink-300">📷</button>
-            <input type="text" id="chat-input" placeholder="Mensagem..." maxlength="2000" class="flex-1 min-w-0 bg-transparent outline-none text-sm">
+            <button type="button" onclick="document.getElementById('chat-photo').click()" class="text-pink-300" aria-label="Enviar foto">📷</button>
+            <input type="text" id="chat-input" placeholder="Mensagem..." maxlength="2000" aria-label="Mensagem" class="flex-1 min-w-0 bg-transparent outline-none text-sm">
             <button type="submit" class="text-pink-300 font-bold">ENVIAR</button>
         </form>
     </div>
 
-    <div id="modal-perfil" class="fixed inset-0 bg-black/95 z-[4000] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="modal-perfil" class="modal fixed inset-0 bg-black/95 z-[4000] hidden flex items-center justify-center p-4 sm:p-6">
         <div class="card-main p-8 sm:p-10 max-w-sm w-full text-center">
-            <img id="modal-user-img" src="https://ui-avatars.com/api/?background=ffb7c5&color=000&name=U" alt="Perfil" class="w-24 h-24 rounded-full mx-auto mb-4 border-2 border-pink-300 object-cover">
-            <p id="modal-user-email" class="text-xs text-gray-500 mb-8"></p>
+            <img id="modal-user-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="Foto de perfil" class="w-24 h-24 rounded-full mx-auto mb-4 border-2 border-pink-300 object-cover">
+            <p id="modal-user-email" class="text-xs text-gray-500 mb-8 break-all"></p>
             <div class="space-y-3 mb-8">
                 <button onclick="document.getElementById('file-perfil').click()" class="w-full p-4 bg-white/5 rounded-xl text-[10px] font-black uppercase">Alterar Foto</button>
                 <input type="file" id="file-perfil" accept="image/*" class="hidden" onchange="atualizarFotoPerfil(event)">
                 <div class="pt-4 border-t border-white/10">
                     <p id="label-seguranca" class="text-[9px] text-gray-500 uppercase mb-2">Segurança</p>
-                    <input type="password" id="nova-senha-input" autocomplete="new-password" placeholder="Nova Senha" class="w-full p-4 bg-white/5 rounded-xl outline-none text-xs mb-2">
+                    <input type="password" id="nova-senha-input" autocomplete="new-password" placeholder="Nova Senha (mín. 8)" class="w-full p-4 bg-white/5 rounded-xl outline-none text-xs mb-2">
                     <button onclick="atualizarSenha()" class="w-full p-4 bg-pink-300/10 text-pink-300 rounded-xl text-[10px] font-black uppercase">Trocar Senha</button>
                 </div>
             </div>
@@ -199,29 +214,36 @@
         </div>
     </div>
 
-    <div id="modal-raiox" class="fixed inset-0 bg-black/[0.98] z-[6000] hidden flex flex-col items-center justify-center p-6">
+    <!-- Visualizador de imagens: pontos do raio-X, fotos do diário e do chat -->
+    <div id="modal-raiox" class="modal fixed inset-0 bg-black/[0.98] z-[6000] hidden flex flex-col items-center justify-center p-6">
         <button onclick="fecharModal('modal-raiox')" class="absolute top-6 right-6 md:top-10 md:right-10 text-pink-300 font-black">FECHAR [X]</button>
-        <h3 id="raiox-titulo" class="text-2xl font-black text-pink-200 mb-8 italic uppercase"></h3>
-        <img id="raiox-img" src="" alt="" class="max-w-4xl w-full max-h-[75vh] object-contain rounded-3xl shadow-2xl border-2 border-pink-300/20">
+        <h3 id="raiox-titulo" class="text-2xl font-black text-pink-200 mb-8 italic uppercase text-center"></h3>
+        <img id="raiox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="" class="max-w-4xl w-full max-h-[70vh] object-contain rounded-3xl shadow-2xl border-2 border-pink-300/20">
+        <button id="btn-excluir-ponto" onclick="excluirPontoAtual()" class="hidden mt-6 bg-red-500/10 text-red-500 px-6 py-3 rounded-xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">Excluir este ponto</button>
     </div>
 
-    <div id="modal-editar-progresso" class="fixed inset-0 bg-black/95 z-[5000] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="modal-editar-progresso" class="modal fixed inset-0 bg-black/95 z-[5000] hidden flex items-center justify-center p-4 sm:p-6">
         <div class="card-main p-8 sm:p-10 max-w-sm w-full text-center">
-            <h3 id="edit-etapa-nome" class="text-xl font-black text-pink-200 uppercase mb-4">Etapa</h3>
-            <input type="range" id="edit-etapa-range" min="0" max="100" class="w-full accent-pink-300 mb-4" oninput="document.getElementById('edit-val-display').innerText = this.value + '%'">
-            <p id="edit-val-display" class="text-5xl font-black italic mb-10">0%</p>
-            <input type="hidden" id="edit-etapa-id">
+            <h3 id="edit-etapa-titulo" class="text-xl font-black text-pink-200 uppercase mb-6">Etapa</h3>
+            <input type="text" id="edit-etapa-nome" maxlength="80" placeholder="NOME DA ETAPA" aria-label="Nome da etapa" class="w-full p-4 mb-6 bg-white/5 rounded-xl outline-none text-center text-sm font-bold">
+            <input type="range" id="edit-etapa-range" min="0" max="100" aria-label="Progresso" class="w-full accent-pink-300 mb-4" oninput="document.getElementById('edit-val-display').innerText = this.value + '%'">
+            <p id="edit-val-display" class="text-5xl font-black italic mb-8">0%</p>
+            <div id="edit-etapa-extras" class="grid grid-cols-3 gap-2 mb-8">
+                <button onclick="moverEtapa(-1)" class="p-3 bg-white/5 rounded-xl text-[9px] font-black uppercase hover:bg-white/10">↑ Subir</button>
+                <button onclick="moverEtapa(1)" class="p-3 bg-white/5 rounded-xl text-[9px] font-black uppercase hover:bg-white/10">↓ Descer</button>
+                <button onclick="excluirEtapa()" class="p-3 bg-red-500/10 text-red-500 rounded-xl text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">Excluir</button>
+            </div>
             <div class="flex gap-4">
                 <button onclick="fecharModal('modal-editar-progresso')" class="flex-1 text-gray-500 font-bold uppercase text-[10px]">Cancelar</button>
-                <button onclick="salvarNovoProgresso()" class="flex-1 pink-btn p-4 rounded-xl">Salvar</button>
+                <button id="btn-salvar-etapa" onclick="salvarEtapa()" class="flex-1 pink-btn p-4 rounded-xl">Salvar</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-diario" class="fixed inset-0 bg-black/95 z-[3000] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="modal-diario" class="modal fixed inset-0 bg-black/95 z-[3000] hidden flex items-center justify-center p-4 sm:p-6">
         <div class="card-main p-8 sm:p-10 max-w-lg w-full">
             <h3 class="text-2xl font-bold mb-6 text-pink-200 italic uppercase">Novo Relato</h3>
-            <textarea id="texto-diario" class="w-full h-44 bg-white/5 rounded-2xl p-5 mb-4 outline-none text-white" placeholder="O que foi feito hoje?"></textarea>
+            <textarea id="texto-diario" maxlength="5000" class="w-full h-44 bg-white/5 rounded-2xl p-5 mb-4 outline-none text-white" placeholder="O que foi feito hoje?"></textarea>
             <input type="file" id="file-diario-obra" accept="image/*" class="hidden" onchange="previewFotoDiario(event)">
             <button id="btn-foto-diario" onclick="document.getElementById('file-diario-obra').click()" class="w-full p-4 border border-dashed border-white/20 rounded-xl mb-4 text-[10px] text-gray-400 uppercase font-black">Anexar Foto</button>
             <div class="flex gap-4">
@@ -231,11 +253,11 @@
         </div>
     </div>
 
-    <div id="modal-pedido" class="fixed inset-0 bg-black/95 z-[3000] hidden flex items-center justify-center p-4 sm:p-6">
+    <div id="modal-pedido" class="modal fixed inset-0 bg-black/95 z-[3000] hidden flex items-center justify-center p-4 sm:p-6">
         <div class="card-main p-8 sm:p-10 max-w-lg w-full">
             <h3 class="text-2xl font-bold mb-6 text-pink-200 italic uppercase">Solicitar Material</h3>
-            <input type="text" id="mat-nome" placeholder="NOME DO MATERIAL" class="w-full p-4 mb-4 bg-white/5 rounded-xl outline-none text-white">
-            <input type="text" id="mat-qtd" placeholder="QUANTIDADE" class="w-full p-4 mb-4 bg-white/5 rounded-xl outline-none text-white">
+            <input type="text" id="mat-nome" maxlength="120" placeholder="NOME DO MATERIAL" class="w-full p-4 mb-4 bg-white/5 rounded-xl outline-none text-white">
+            <input type="text" id="mat-qtd" maxlength="60" placeholder="QUANTIDADE" class="w-full p-4 mb-4 bg-white/5 rounded-xl outline-none text-white">
             <div class="grid grid-cols-3 gap-3 mb-8">
                 <button onclick="setUrgencia('critica', this)" class="urg-btn p-3 rounded-xl border border-red-500/30 text-red-500 text-[10px] font-black uppercase">Crítica</button>
                 <button onclick="setUrgencia('media', this)" class="urg-btn p-3 rounded-xl border border-yellow-500/30 text-yellow-500 text-[10px] font-black uppercase">Média</button>
@@ -249,21 +271,25 @@
     </div>
 
     <script>
-        // A chave "anon" é pública por natureza. A proteção dos dados é feita
-        // pelas regras de segurança (RLS) do Supabase — ver supabase-seguranca.sql.
+        // A chave "publishable" é pública por natureza. A proteção dos dados é feita
+        // pelas regras de segurança (RLS) do Supabase — ver supabase-setup.sql.
         const SUPA_URL = "https://kasrpxzqniumebjnrdmg.supabase.co";
         const SUPA_KEY = "sb_publishable_F4g1MLofOwh5jPe0BRvOqQ_almmNo1L";
         const BUCKET = 'obra-uploads';
-        const AVATAR_PADRAO = 'https://ui-avatars.com/api/?background=ffb7c5&color=000&name=U';
+        const LIMITE_CHAT = 200;
         const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
         let userState = { id: null, email: '', role: 'CLIENTE', avatar: null };
         let appIniciado = false;
         let urgenciaSelecionada = 'planeada';
-        let pedidoParaAprovar = null;
+        let pedidoParaAprovar = null;   // null = lançamento avulso
         let arquivoCupom = null;
         let arquivoDiario = null;
-        let cache = { hotspots: [], cronograma: [], pedidos: [], financeiro: [] };
+        let etapaEditando = -1;         // índice em cache.cronograma, ou -1 para nova etapa
+        let pontoAberto = null;         // ponto do raio-X aberto no visualizador
+        let chatNaoLidas = 0;
+        let cache = { hotspots: [], cronograma: [], pedidos: [], financeiro: [], diario: [] };
+        const ehAdmin = () => userState.role === 'ADMIN';
 
         // --- SEGURANÇA: escapar todo texto vindo do banco antes de pôr na página ---
         function esc(v) {
@@ -276,11 +302,37 @@
         }
         function emailCurto(e) { return String(e || '').split('@')[0]; }
         function dataBR(d) { return d ? new Date(d).toLocaleDateString('pt-BR') : ''; }
+        function dataHoraBR(d) { return d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''; }
         function moeda(n) { return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
         function ocupado(btnId, sim) { const b = document.getElementById(btnId); if (b) b.disabled = sim; }
 
+        // Avatar com a inicial, gerado aqui mesmo (sem mandar dados para outros sites)
+        function avatarPadrao(nome) {
+            const letra = esc((String(nome || 'U').trim().charAt(0) || 'U').toUpperCase());
+            return 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#ffb7c5"/><text x="32" y="43" font-family="Arial,sans-serif" font-size="30" font-weight="700" text-anchor="middle" fill="#000">${letra}</text></svg>`);
+        }
+
+        // --- AVISOS (substituem os alert) ---
+        function toast(msg, tipo = 'ok') {
+            const d = document.createElement('div');
+            d.className = 'toast pointer-events-auto px-5 py-3 rounded-xl text-xs font-bold shadow-2xl border text-center ' +
+                (tipo === 'erro' ? 'bg-red-950 border-red-500/40 text-red-200' : 'bg-[#14161a] border-pink-300/30 text-pink-100');
+            d.setAttribute('role', tipo === 'erro' ? 'alert' : 'status');
+            d.textContent = msg;
+            document.getElementById('toasts').appendChild(d);
+            setTimeout(() => d.remove(), tipo === 'erro' ? 6000 : 3500);
+        }
+        function traduzErro(e) {
+            const m = e?.message || String(e);
+            if (/row-level security|permission denied/i.test(m)) return 'você não tem permissão para isso.';
+            if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'sem conexão com o servidor.';
+            if (/mime type|not supported/i.test(m)) return 'tipo de arquivo não permitido (use imagem ou PDF).';
+            return m;
+        }
+        function falha(err, oQue) { console.error(oQue, err); toast(`Não foi possível ${oQue}: ${traduzErro(err)}`, 'erro'); }
+
         async function uploadArquivo(file, pasta) {
-            if (file.size > 10 * 1024 * 1024) throw new Error('Arquivo maior que 10 MB.');
+            if (file.size > 10 * 1024 * 1024) throw new Error('arquivo maior que 10 MB.');
             const ext = ((file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '')) || 'bin';
             const caminho = `${pasta}/${crypto.randomUUID()}.${ext}`;
             const { error } = await sb.storage.from(BUCKET).upload(caminho, file, { contentType: file.type || undefined });
@@ -314,30 +366,29 @@
             ocupado('btn-login', true);
             const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
             ocupado('btn-login', false);
-            if (error) return mostrarErroLogin(error.message.includes('Invalid login') ? 'E-mail ou senha incorretos.' : 'Erro: ' + error.message);
+            if (error) return mostrarErroLogin(/Invalid login/i.test(error.message) ? 'E-mail ou senha incorretos.' : 'Erro: ' + traduzErro(error));
             document.getElementById('login-pass').value = '';
             await iniciarSessao(data.user);
         }
 
         async function esqueciSenha() {
-            const email = prompt("Digite seu e-mail para recuperação:");
-            if (email) {
+            const sugestao = document.getElementById('login-email').value.trim();
+            const email = prompt("Digite seu e-mail para recuperação:", sugestao);
+            if (email && email.trim()) {
                 const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
-                if (error) alert("Erro: " + error.message);
-                else alert("Se o e-mail estiver cadastrado, você receberá o link de recuperação.");
+                if (error) falha(error, 'enviar o e-mail');
+                else toast("Se o e-mail estiver cadastrado, você receberá o link de recuperação.");
             }
         }
 
         async function atualizarSenha() {
             const nova = document.getElementById('nova-senha-input').value;
-            if (nova.length < 8) return alert("A senha deve ter no mínimo 8 caracteres.");
+            if (nova.length < 8) return toast("A senha deve ter no mínimo 8 caracteres.", 'erro');
             const { error } = await sb.auth.updateUser({ password: nova });
-            if (error) alert("Erro ao atualizar: " + error.message);
-            else {
-                alert("Senha atualizada com sucesso!");
-                document.getElementById('nova-senha-input').value = '';
-                document.getElementById('label-seguranca').innerText = 'Segurança';
-            }
+            if (error) return falha(error, 'trocar a senha');
+            toast("Senha atualizada com sucesso!");
+            document.getElementById('nova-senha-input').value = '';
+            document.getElementById('label-seguranca').innerText = 'Segurança';
         }
 
         async function iniciarSessao(user) {
@@ -355,23 +406,19 @@
         }
 
         function ativarApp() {
-            // imagens da planta vêm da pasta "projeto-arquivos" do projeto configurado acima
-            document.querySelectorAll('img[data-arquivo]').forEach(img => {
-                img.src = `${SUPA_URL}/storage/v1/object/public/projeto-arquivos/${img.dataset.arquivo}`;
-            });
+            prepararPlanta();
             document.getElementById('login-overlay').style.display = 'none';
             document.getElementById('app-content').classList.remove('hidden');
             document.getElementById('chat-bubble').classList.remove('hidden');
             document.getElementById('user-name-top').innerText = emailCurto(userState.email);
             document.getElementById('user-role-badge').innerText = userState.role + " ACCESS";
             document.getElementById('modal-user-email').innerText = userState.email;
-            const avatar = userState.avatar || `https://ui-avatars.com/api/?background=ffb7c5&color=000&name=${encodeURIComponent(emailCurto(userState.email) || 'U')}`;
+            const avatar = userState.avatar || avatarPadrao(userState.email);
             document.getElementById('user-avatar-img').src = avatar;
             document.getElementById('modal-user-img').src = avatar;
-            if (userState.role === 'ADMIN') {
-                document.getElementById('btn-novo-relato').classList.remove('hidden');
-                document.getElementById('btn-novo-pedido').classList.remove('hidden');
-                document.getElementById('btn-add-ponto').classList.remove('hidden');
+            if (ehAdmin()) {
+                ['btn-novo-relato', 'btn-novo-pedido', 'btn-add-ponto', 'btn-nova-etapa', 'btn-novo-lancamento']
+                    .forEach(id => document.getElementById(id).classList.remove('hidden'));
             }
             iniciarMenu(); carregarDiario(); carregarPedidos(); carregarChat(); carregarCronograma(); carregarHotspots(); carregarFinanceiro(); inscreverRealtime();
         }
@@ -389,50 +436,81 @@
             document.getElementById('tab-' + id).classList.add('active');
             const b = document.getElementById('btn-' + id);
             if (b) b.classList.add('active');
+            window.scrollTo({ top: 0 });
         }
 
-        // --- RAIO X ---
+        // --- PLANTA E RAIO X ---
+        // As imagens vêm da pasta "projeto-arquivos" do projeto configurado acima
+        function prepararPlanta() {
+            const base = document.getElementById('planta-base');
+            base.onerror = () => {
+                document.getElementById('map-container').classList.add('hidden');
+                document.getElementById('filtros-tecnicos').classList.add('hidden');
+                const aviso = document.getElementById('planta-vazia');
+                aviso.classList.remove('hidden');
+                if (ehAdmin()) aviso.innerText = 'A planta da obra ainda não foi enviada. No Supabase, abra Storage → projeto-arquivos e envie o arquivo "planta base.png".';
+            };
+            document.querySelectorAll('.tech-layer').forEach(l => { l.onerror = () => { l.dataset.falhou = '1'; l.style.display = 'none'; }; });
+            document.querySelectorAll('img[data-arquivo]').forEach(img => {
+                img.src = `${SUPA_URL}/storage/v1/object/public/projeto-arquivos/${img.dataset.arquivo}`;
+            });
+        }
+
         async function carregarHotspots() {
-            const { data } = await sb.from('pontos_tecnicos').select('*');
-            if (data) {
-                cache.hotspots = data;
-                document.getElementById('hotspots-container').innerHTML = data.map((p, i) => `
-                    <div class="hotspot" title="${esc(p.nome_comodo)}" style="left: ${Number(p.pos_x) || 0}%; top: ${Number(p.pos_y) || 0}%" onclick="event.stopPropagation(); abrirRaioX(${i})"></div>
-                `).join('');
-            }
+            const { data, error } = await sb.from('pontos_tecnicos').select('*');
+            if (error) return falha(error, 'carregar os pontos da planta');
+            cache.hotspots = data;
+            document.getElementById('hotspots-container').innerHTML = data.map((p, i) => `
+                <div class="hotspot" role="button" aria-label="${esc(p.nome_comodo)}" title="${esc(p.nome_comodo)}" style="left: ${Number(p.pos_x) || 0}%; top: ${Number(p.pos_y) || 0}%" onclick="event.stopPropagation(); abrirRaioX(${i})"></div>
+            `).join('');
         }
 
         function modoAdicionarPonto() {
-            alert("Clique na planta para marcar o novo ponto técnico.");
             const map = document.getElementById('map-container');
+            if (map.classList.contains('hidden')) return toast('Envie a planta antes de marcar pontos.', 'erro');
+            toast("Clique na planta para marcar o novo ponto técnico.");
+            map.classList.add('marcando-ponto');
             map.onclick = (e) => {
                 map.onclick = null;
+                map.classList.remove('marcando-ponto');
                 const rect = map.getBoundingClientRect();
-                const x = ((e.clientX - rect.left) / rect.width) * 100;
-                const y = ((e.clientY - rect.top) / rect.height) * 100;
-                const nome = prompt("Nome do Cômodo (ex: Cozinha):");
+                const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+                const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+                const nome = (prompt("Nome do Cômodo (ex: Cozinha):") || '').trim();
                 if (!nome) return;
                 const input = document.createElement('input');
                 input.type = 'file'; input.accept = 'image/*';
                 input.onchange = async () => {
                     const file = input.files[0]; if (!file) return;
                     try {
+                        toast('Enviando foto...');
                         const url = await uploadArquivo(file, 'raiox');
                         const { error } = await sb.from('pontos_tecnicos').insert([{ nome_comodo: nome, url_foto_interna: url, pos_x: x.toFixed(2), pos_y: y.toFixed(2) }]);
                         if (error) throw error;
                         carregarHotspots();
-                        alert("Ponto técnico salvo com sucesso!");
-                    } catch (err) { alert("Erro ao salvar ponto: " + err.message); }
+                        toast("Ponto técnico salvo com sucesso!");
+                    } catch (err) { falha(err, 'salvar o ponto'); }
                 };
                 input.click();
             };
         }
 
-        function abrirRaioX(i) {
-            const p = cache.hotspots[i]; if (!p) return;
-            document.getElementById('raiox-titulo').innerText = p.nome_comodo || '';
-            document.getElementById('raiox-img').src = urlSegura(p.url_foto_interna);
+        // Visualizador de imagem (raio-X, diário e chat)
+        function abrirImagem(titulo, url, ponto = null) {
+            url = urlSegura(url); if (!url) return;
+            pontoAberto = ponto;
+            document.getElementById('raiox-titulo').innerText = titulo || '';
+            document.getElementById('raiox-img').src = url;
+            document.getElementById('btn-excluir-ponto').classList.toggle('hidden', !(ponto && ehAdmin()));
             abrirModal('modal-raiox');
+        }
+        function abrirRaioX(i) { const p = cache.hotspots[i]; if (p) abrirImagem(p.nome_comodo, p.url_foto_interna, p); }
+
+        async function excluirPontoAtual() {
+            if (!pontoAberto || !confirm(`Excluir o ponto "${pontoAberto.nome_comodo}"?`)) return;
+            const { error } = await sb.from('pontos_tecnicos').delete().eq('id', pontoAberto.id);
+            if (error) return falha(error, 'excluir o ponto');
+            fecharModal('modal-raiox'); carregarHotspots(); toast('Ponto excluído.');
         }
 
         function toggleLayer(layerId, checkbox) {
@@ -440,137 +518,266 @@
             layers.forEach(l => document.getElementById(l).style.opacity = "0");
             // só uma camada por vez: desmarca as outras caixas
             document.querySelectorAll('.layer-check').forEach(c => { if (c !== checkbox) c.checked = false; });
+            const layer = document.getElementById(layerId);
+            if (checkbox.checked && layer.dataset.falhou) {
+                checkbox.checked = false;
+                toast('A imagem desta camada ainda não foi enviada.', 'erro');
+            }
             if (checkbox.checked) {
-                document.getElementById(layerId).style.opacity = "1";
+                layer.style.opacity = "1";
                 document.getElementById('planta-base').style.opacity = "0.2";
             } else { document.getElementById('planta-base').style.opacity = "1"; }
         }
 
         // --- CHAT ---
+        function chatAberto() { return document.getElementById('chat-widget').style.display === 'flex'; }
+        function atualizarBadgeChat() {
+            const b = document.getElementById('chat-badge');
+            b.innerText = chatNaoLidas > 99 ? '99+' : chatNaoLidas;
+            b.classList.toggle('hidden', chatNaoLidas === 0);
+        }
         function toggleChat() {
             const c = document.getElementById('chat-widget');
-            c.style.display = c.style.display === 'flex' ? 'none' : 'flex';
-            if (c.style.display === 'flex') { const m = document.getElementById('chat-messages'); m.scrollTop = m.scrollHeight; }
+            c.style.display = chatAberto() ? 'none' : 'flex';
+            if (chatAberto()) {
+                chatNaoLidas = 0; atualizarBadgeChat();
+                const m = document.getElementById('chat-messages'); m.scrollTop = m.scrollHeight;
+                document.getElementById('chat-input').focus();
+            }
         }
 
         async function carregarChat() {
-            const { data } = await sb.from('chat_mensagens').select('*').order('created_at', { ascending: true });
-            if (data) {
-                document.getElementById('chat-messages').innerHTML = '';
-                data.forEach(msg => renderMsg(msg));
-            }
+            // só as mensagens mais recentes, para o painel não ficar pesado com o tempo
+            const { data, error } = await sb.from('chat_mensagens').select('*').order('created_at', { ascending: false }).limit(LIMITE_CHAT);
+            if (error) return falha(error, 'carregar o chat');
+            const box = document.getElementById('chat-messages');
+            box.innerHTML = data.length ? '' : '<p id="chat-vazio" class="text-[11px] text-gray-500 text-center my-auto">Nenhuma mensagem ainda. Diga olá!</p>';
+            data.reverse().forEach(msg => renderMsg(msg));
         }
 
         async function enviarMensagemChat() {
             const i = document.getElementById('chat-input'); const texto = i.value.trim(); if (!texto) return;
             i.value = '';
             const { error } = await sb.from('chat_mensagens').insert([{ autor: userState.email, mensagem: texto }]);
-            if (error) { i.value = texto; alert("Erro ao enviar: " + error.message); }
+            if (error) { i.value = texto; falha(error, 'enviar a mensagem'); }
         }
 
         async function enviarFotoChat(e) {
             const file = e.target.files[0]; e.target.value = ''; if (!file) return;
             try {
+                toast('Enviando foto...');
                 const url = await uploadArquivo(file, 'chat');
                 const { error } = await sb.from('chat_mensagens').insert([{ autor: userState.email, midia_url: url }]);
                 if (error) throw error;
-            } catch (err) { alert("Erro ao enviar foto: " + err.message); }
+            } catch (err) { falha(err, 'enviar a foto'); }
         }
 
         function renderMsg(msg) {
             const container = document.getElementById('chat-messages');
+            document.getElementById('chat-vazio')?.remove();
+            if (msg.id != null && container.querySelector(`[data-msg-id="${CSS.escape(String(msg.id))}"]`)) return; // evita duplicar
             const div = document.createElement('div');
+            if (msg.id != null) div.dataset.msgId = msg.id;
             const isMe = msg.autor === userState.email;
             div.className = isMe ? "self-end bg-pink-300 text-black p-3 rounded-2xl ml-auto max-w-[80%]" : "self-start bg-white/5 p-3 rounded-2xl max-w-[80%]";
             const midia = urlSegura(msg.midia_url);
-            const content = midia ? `<img src="${esc(midia)}" alt="" class="rounded-lg max-w-full">` : `<p class="text-[12px] whitespace-pre-wrap break-words">${esc(msg.mensagem)}</p>`;
-            div.innerHTML = `<p class="text-[9px] opacity-50 font-black mb-1">${esc(emailCurto(msg.autor))}</p>${content}`;
+            const content = midia ? `<img src="${esc(midia)}" alt="Foto enviada" class="rounded-lg max-w-full cursor-pointer">` : `<p class="text-[12px] whitespace-pre-wrap break-words">${esc(msg.mensagem)}</p>`;
+            div.innerHTML = `<p class="text-[9px] opacity-50 font-black mb-1">${esc(emailCurto(msg.autor))} · ${esc(dataHoraBR(msg.created_at))}</p>${content}`;
+            if (midia) div.querySelector('img').onclick = () => abrirImagem('Foto do chat', midia);
             container.appendChild(div); container.scrollTop = container.scrollHeight;
+        }
+
+        function mensagemNovaChat(msg) {
+            renderMsg(msg);
+            if (!chatAberto() && msg.autor !== userState.email) { chatNaoLidas++; atualizarBadgeChat(); }
         }
 
         // --- FINANCEIRO ---
         async function carregarFinanceiro() {
-            const { data } = await sb.from('obra_financeiro').select('*').order('created_at', { ascending: false });
-            if (data) {
-                cache.financeiro = data;
-                let t = 0;
-                document.getElementById('lista-financeiro-body').innerHTML = data.map(f => {
-                    t += Number(f.valor_pago) || 0;
-                    const anexo = urlSegura(f.cupom_url);
-                    const btn = anexo ? `<button onclick='abrirAnexo(${esc(JSON.stringify(anexo))})' class="text-[9px] bg-white/5 p-2 rounded hover:bg-white/10">VER</button>` : `<span class="text-[9px] text-gray-600">—</span>`;
-                    return `<tr class="border-b border-white/5"><td class="p-6 text-xs text-gray-500">${esc(dataBR(f.created_at))}</td><td class="p-6 text-xs font-bold uppercase">${esc(f.descricao)}</td><td class="p-6 text-pink-300 font-black whitespace-nowrap">${esc(moeda(f.valor_pago))}</td><td class="p-6">${btn}</td></tr>`;
-                }).join('') || `<tr><td colspan="4" class="p-6 text-xs text-gray-500">Nenhum lançamento ainda.</td></tr>`;
-                document.getElementById('total-financeiro').innerText = moeda(t);
-            }
+            const { data, error } = await sb.from('obra_financeiro').select('*').order('created_at', { ascending: false });
+            if (error) return falha(error, 'carregar o financeiro');
+            cache.financeiro = data;
+            let t = 0;
+            document.getElementById('lista-financeiro-body').innerHTML = data.map((f, i) => {
+                t += Number(f.valor_pago) || 0;
+                const anexo = urlSegura(f.cupom_url);
+                const btn = anexo ? `<button onclick="abrirAnexoFinanceiro(${i})" class="text-[9px] bg-white/5 p-2 rounded hover:bg-white/10">VER</button>` : `<span class="text-[9px] text-gray-600">—</span>`;
+                const del = ehAdmin() ? `<button onclick="excluirLancamento(${i})" aria-label="Excluir lançamento" title="Excluir" class="text-[10px] text-red-500/70 hover:text-red-500 font-black px-2">✕</button>` : '';
+                return `<tr class="border-b border-white/5"><td class="p-6 text-xs text-gray-500">${esc(dataBR(f.created_at))}</td><td class="p-6 text-xs font-bold uppercase">${esc(f.descricao)}</td><td class="p-6 text-pink-300 font-black whitespace-nowrap">${esc(moeda(f.valor_pago))}</td><td class="p-6">${btn}</td><td class="p-6 text-right">${del}</td></tr>`;
+            }).join('') || `<tr><td colspan="5" class="p-6 text-xs text-gray-500">Nenhum lançamento ainda.</td></tr>`;
+            document.getElementById('total-financeiro').innerText = moeda(t);
+        }
+
+        function abrirAnexoFinanceiro(i) { const f = cache.financeiro[i]; if (f) abrirAnexo(f.cupom_url); }
+
+        async function excluirLancamento(i) {
+            const f = cache.financeiro[i]; if (!f) return;
+            if (!confirm(`Excluir o lançamento "${f.descricao}" de ${moeda(f.valor_pago)}?`)) return;
+            const { error } = await sb.from('obra_financeiro').delete().eq('id', f.id);
+            if (error) return falha(error, 'excluir o lançamento');
+            carregarFinanceiro(); toast('Lançamento excluído.');
         }
 
         function gerarRelatorioFinanceiro() {
+            if (!cache.financeiro.length) return toast('Não há lançamentos para o relatório.', 'erro');
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.text("RELATÓRIO FINANCEIRO - GP OBRA", 14, 15);
+            doc.setFontSize(9); doc.text("Gerado em " + new Date().toLocaleString('pt-BR'), 14, 21);
             doc.autoTable({
-                startY: 25, theme: 'striped',
+                startY: 27, theme: 'striped',
                 head: [['Data', 'Descrição', 'Valor']],
                 body: cache.financeiro.map(f => [dataBR(f.created_at), f.descricao || '', moeda(f.valor_pago)]),
                 headStyles: { fillColor: [255, 183, 197], textColor: [0, 0, 0] }
             });
+            doc.setFontSize(12);
             doc.text("TOTAL: " + document.getElementById('total-financeiro').innerText, 14, doc.lastAutoTable.finalY + 10);
             doc.save('Financeiro_Obra.pdf');
         }
 
+        // Modal de lançamento: aprovar pedido (cupom obrigatório) ou despesa avulsa (cupom opcional)
+        function prepararModalLancamento(titulo, subtitulo, avulso) {
+            document.getElementById('titulo-lancamento').innerText = titulo;
+            document.getElementById('label-material-aprov').innerText = subtitulo;
+            const desc = document.getElementById('desc-lancamento');
+            desc.classList.toggle('hidden', !avulso); desc.value = '';
+            document.getElementById('btn-anexar-cupom').innerText = avulso ? 'Anexar comprovante (opcional)' : 'Anexar Cupom Fiscal';
+            document.getElementById('valor-material-final').value = '';
+            document.getElementById('cupom-material-file').value = '';
+            document.getElementById('status-cupom').classList.add('hidden');
+            arquivoCupom = null;
+            abrirModal('modal-finalizar-compra');
+        }
+        function abrirNovoLancamento() { pedidoParaAprovar = null; prepararModalLancamento('Novo Lançamento', 'Despesa avulsa (mão de obra, serviços, taxas...)', true); }
+        function abrirModalAprovacaoMaterial(i) {
+            const p = cache.pedidos[i]; if (!p) return;
+            pedidoParaAprovar = { id: p.id, material: p.material };
+            prepararModalLancamento('Aprovar & Lançar', 'Material: ' + (p.material || ''), false);
+        }
+
+        function previewCupomMaterial(e) {
+            arquivoCupom = e.target.files[0] || null;
+            document.getElementById('status-cupom').classList.toggle('hidden', !arquivoCupom);
+        }
+
+        async function confirmarLancamento() {
+            const valor = parseFloat(document.getElementById('valor-material-final').value);
+            if (!valor || isNaN(valor) || valor <= 0) return toast("Informe o valor pago.", 'erro');
+            const avulso = !pedidoParaAprovar;
+            const descricao = avulso ? document.getElementById('desc-lancamento').value.trim() : `COMPRA: ${pedidoParaAprovar.material}`;
+            if (avulso && !descricao) return toast("Informe a descrição.", 'erro');
+            if (!avulso && !arquivoCupom) return toast("Anexe o cupom fiscal.", 'erro');
+            ocupado('btn-confirmar-compra', true);
+            try {
+                const url = arquivoCupom ? await uploadArquivo(arquivoCupom, 'cupons') : null;
+                const { error: e1 } = await sb.from('obra_financeiro').insert([{ descricao, valor_pago: valor, cupom_url: url }]);
+                if (e1) throw e1;
+                if (!avulso) {
+                    const { error: e2 } = await sb.from('pedidos_materiais').update({ status: 'aprovado' }).eq('id', pedidoParaAprovar.id);
+                    if (e2) throw e2;
+                }
+                fecharModal('modal-finalizar-compra');
+                toast(avulso ? "Lançamento registrado!" : "Compra aprovada e lançada no financeiro!");
+                carregarPedidos(); carregarFinanceiro();
+            } catch (err) { falha(err, 'registrar o lançamento'); }
+            finally { ocupado('btn-confirmar-compra', false); }
+        }
+
         // --- CRONOGRAMA ---
         async function carregarCronograma() {
-            const { data } = await sb.from('obra_cronograma').select('*').order('ordem', { ascending: true });
-            if (data) {
-                cache.cronograma = data;
-                let soma = 0;
-                const admin = userState.role === 'ADMIN';
-                document.getElementById('cronograma-lista').innerHTML = data.map((item, i) => {
-                    const prog = Math.max(0, Math.min(100, Number(item.progresso) || 0));
-                    soma += prog;
-                    return `<div ${admin ? `onclick="abrirEditorProgresso(${i})"` : ''} class="${admin ? 'cursor-pointer' : ''}">
-                        <div class="flex justify-between mb-1"><span class="text-[10px] uppercase text-gray-400">${esc(item.etapa)}</span><span class="text-[10px] text-pink-300">${prog}%</span></div>
-                        <div class="w-full bg-white/5 h-1 rounded-full overflow-hidden"><div class="bg-pink-300 h-full" style="width: ${prog}%"></div></div>
-                    </div>`;
-                }).join('');
-                document.getElementById('progresso-geral-num').innerText = (data.length ? (soma / data.length).toFixed(1) : '0') + "%";
-            }
+            const { data, error } = await sb.from('obra_cronograma').select('*').order('ordem', { ascending: true }).order('id', { ascending: true });
+            if (error) return falha(error, 'carregar o cronograma');
+            cache.cronograma = data;
+            let soma = 0;
+            document.getElementById('cronograma-lista').innerHTML = data.map((item, i) => {
+                const prog = Math.max(0, Math.min(100, Number(item.progresso) || 0));
+                soma += prog;
+                return `<div ${ehAdmin() ? `onclick="abrirEditorEtapa(${i})" role="button" tabindex="0" onkeydown="if(event.key==='Enter')abrirEditorEtapa(${i})" title="Editar etapa"` : ''} class="${ehAdmin() ? 'cursor-pointer hover:opacity-80' : ''}">
+                    <div class="flex justify-between gap-3 mb-1"><span class="text-[10px] uppercase text-gray-400">${esc(item.etapa)}</span><span class="text-[10px] ${prog >= 100 ? 'text-green-400' : 'text-pink-300'}">${prog >= 100 ? '✓ ' : ''}${prog}%</span></div>
+                    <div class="w-full bg-white/5 h-1 rounded-full overflow-hidden"><div class="${prog >= 100 ? 'bg-green-400' : 'bg-pink-300'} h-full" style="width: ${prog}%"></div></div>
+                </div>`;
+            }).join('') || `<p class="text-xs text-gray-500">Nenhuma etapa cadastrada.</p>`;
+            document.getElementById('progresso-geral-num').innerText = (data.length ? (soma / data.length).toFixed(1).replace('.', ',') : '0') + "%";
         }
 
-        function abrirEditorProgresso(i) {
-            const item = cache.cronograma[i]; if (!item) return;
-            document.getElementById('edit-etapa-id').value = item.id;
-            document.getElementById('edit-etapa-nome').innerText = item.etapa || '';
-            document.getElementById('edit-etapa-range').value = item.progresso || 0;
-            document.getElementById('edit-val-display').innerText = (item.progresso || 0) + "%";
+        function abrirEditorEtapa(i) {
+            const item = cache.cronograma[i];
+            etapaEditando = item ? i : -1;
+            document.getElementById('edit-etapa-titulo').innerText = item ? 'Editar Etapa' : 'Nova Etapa';
+            document.getElementById('edit-etapa-nome').value = item?.etapa || '';
+            document.getElementById('edit-etapa-range').value = item?.progresso || 0;
+            document.getElementById('edit-val-display').innerText = (item?.progresso || 0) + "%";
+            document.getElementById('edit-etapa-extras').classList.toggle('hidden', !item);
             abrirModal('modal-editar-progresso');
+            if (!item) document.getElementById('edit-etapa-nome').focus();
         }
 
-        async function salvarNovoProgresso() {
-            const id = document.getElementById('edit-etapa-id').value;
-            const val = parseInt(document.getElementById('edit-etapa-range').value, 10);
-            const { error } = await sb.from('obra_cronograma').update({ progresso: val }).eq('id', id);
-            if (error) return alert("Erro ao salvar: " + error.message);
+        async function salvarEtapa() {
+            const etapa = document.getElementById('edit-etapa-nome').value.trim();
+            const progresso = parseInt(document.getElementById('edit-etapa-range').value, 10) || 0;
+            if (!etapa) return toast('Informe o nome da etapa.', 'erro');
+            const item = cache.cronograma[etapaEditando];
+            ocupado('btn-salvar-etapa', true);
+            const { error } = item
+                ? await sb.from('obra_cronograma').update({ etapa, progresso }).eq('id', item.id)
+                : await sb.from('obra_cronograma').insert([{ etapa, progresso, ordem: cache.cronograma.reduce((m, e) => Math.max(m, Number(e.ordem) || 0), 0) + 1 }]);
+            ocupado('btn-salvar-etapa', false);
+            if (error) return falha(error, 'salvar a etapa');
             fecharModal('modal-editar-progresso'); carregarCronograma();
+        }
+
+        async function moverEtapa(dir) {
+            const i = etapaEditando, j = i + dir;
+            if (i < 0 || j < 0 || j >= cache.cronograma.length) return;
+            const lista = [...cache.cronograma];
+            [lista[i], lista[j]] = [lista[j], lista[i]];
+            // renumera a ordem e grava só as etapas que mudaram de posição
+            const mudancas = lista.map((it, idx) => ({ id: it.id, ordem: idx + 1, antes: it.ordem })).filter(m => m.antes !== m.ordem);
+            const res = await Promise.all(mudancas.map(m => sb.from('obra_cronograma').update({ ordem: m.ordem }).eq('id', m.id)));
+            const erro = res.find(r => r.error)?.error;
+            if (erro) return falha(erro, 'reordenar');
+            etapaEditando = j;
+            await carregarCronograma();
+        }
+
+        async function excluirEtapa() {
+            const item = cache.cronograma[etapaEditando]; if (!item) return;
+            if (!confirm(`Excluir a etapa "${item.etapa}"?`)) return;
+            const { error } = await sb.from('obra_cronograma').delete().eq('id', item.id);
+            if (error) return falha(error, 'excluir a etapa');
+            fecharModal('modal-editar-progresso'); carregarCronograma(); toast('Etapa excluída.');
         }
 
         // --- DIÁRIO ---
         async function carregarDiario() {
-            const { data } = await sb.from('diario_obra').select('*').order('id', { ascending: false });
-            if (data) {
-                document.getElementById('feed-diario').innerHTML = data.map(item => {
-                    const midia = urlSegura(item.midia_url);
-                    return `<div class="card-main p-6 md:p-8 bg-white/[0.02]">
-                        <p class="text-[10px] font-black text-pink-300 uppercase mb-4">${esc(emailCurto(item.autor))} • ${esc(dataBR(item.created_at))}</p>
-                        <p class="text-gray-300 mb-6 text-sm whitespace-pre-wrap break-words">${esc(item.descricao)}</p>
-                        ${midia ? `<img src="${esc(midia)}" alt="" class="w-full h-48 object-cover rounded-2xl">` : ''}
-                    </div>`;
-                }).join('') || `<p class="text-xs text-gray-500">Nenhum relato ainda.</p>`;
-            }
+            const { data, error } = await sb.from('diario_obra').select('*').order('id', { ascending: false });
+            if (error) return falha(error, 'carregar o diário');
+            cache.diario = data;
+            document.getElementById('feed-diario').innerHTML = data.map((item, i) => {
+                const midia = urlSegura(item.midia_url);
+                return `<div class="card-main p-6 md:p-8 bg-white/[0.02]">
+                    <div class="flex justify-between items-start gap-3 mb-4">
+                        <p class="text-[10px] font-black text-pink-300 uppercase">${esc(emailCurto(item.autor))} • ${esc(dataBR(item.created_at))}</p>
+                        ${ehAdmin() ? `<button onclick="excluirRelato(${i})" aria-label="Excluir relato" title="Excluir" class="text-[10px] text-red-500/70 hover:text-red-500 font-black">✕</button>` : ''}
+                    </div>
+                    <p class="text-gray-300 mb-6 text-sm whitespace-pre-wrap break-words">${esc(item.descricao)}</p>
+                    ${midia ? `<img src="${esc(midia)}" alt="Foto do relato" loading="lazy" onclick="verFotoDiario(${i})" class="w-full h-48 object-cover rounded-2xl cursor-pointer">` : ''}
+                </div>`;
+            }).join('') || `<p class="text-xs text-gray-500">Nenhum relato ainda.</p>`;
+        }
+
+        function verFotoDiario(i) { const r = cache.diario[i]; if (r) abrirImagem(`Diário • ${dataBR(r.created_at)}`, r.midia_url); }
+
+        async function excluirRelato(i) {
+            const r = cache.diario[i]; if (!r) return;
+            if (!confirm(`Excluir o relato de ${dataBR(r.created_at)}?`)) return;
+            const { error } = await sb.from('diario_obra').delete().eq('id', r.id);
+            if (error) return falha(error, 'excluir o relato');
+            carregarDiario(); toast('Relato excluído.');
         }
 
         async function salvarDiarioNoBanco() {
-            const t = document.getElementById('texto-diario').value.trim(); if (!t) return alert("Escreva o relato.");
+            const t = document.getElementById('texto-diario').value.trim(); if (!t) return toast("Escreva o relato.", 'erro');
             ocupado('btn-publicar-diario', true);
             try {
                 const url = arquivoDiario ? await uploadArquivo(arquivoDiario, 'diario') : null;
@@ -579,8 +786,8 @@
                 // limpa o formulário (antes a foto ficava "grudada" no próximo relato)
                 document.getElementById('texto-diario').value = '';
                 limparFotoDiario();
-                fecharModal('modal-diario'); carregarDiario();
-            } catch (err) { alert("Erro ao publicar: " + err.message); }
+                fecharModal('modal-diario'); carregarDiario(); toast('Relato publicado!');
+            } catch (err) { falha(err, 'publicar o relato'); }
             finally { ocupado('btn-publicar-diario', false); }
         }
 
@@ -596,90 +803,59 @@
 
         // --- MATERIAIS ---
         async function carregarPedidos() {
-            const { data } = await sb.from('pedidos_materiais').select('*').order('id', { ascending: false });
-            if (data) {
-                cache.pedidos = data;
-                const admin = userState.role === 'ADMIN';
-                document.getElementById('lista-pedidos-container').innerHTML = data.map((p, i) => `
-                    <div class="card-main p-6 md:p-8 bg-white/[0.02] ${p.urgencia === 'critica' ? 'border-critica' : (p.urgencia === 'media' ? 'border-media' : 'border-planeada')}">
-                        <p class="font-bold text-white uppercase text-sm break-words">${esc(p.material)}</p>
-                        <p class="text-[11px] text-gray-500 uppercase font-black mb-4">Qtd: ${esc(p.quantidade)}</p>
-                        <span class="text-[9px] font-black px-2 py-1 bg-white/5 text-gray-400 rounded uppercase">${esc(p.status)}</span>
-                        ${admin && p.status === 'pendente' ? `
-                        <div class="flex gap-2 border-t border-white/5 pt-4 mt-4">
-                            <button onclick="abrirModalAprovacaoMaterial(${i})" class="flex-1 bg-green-500/10 text-green-500 text-[8px] font-black py-2 rounded uppercase hover:bg-green-500 hover:text-white transition-all">Aprovar</button>
-                            <button onclick="excluirPedido(${i})" class="flex-1 bg-red-500/10 text-red-500 text-[8px] font-black py-2 rounded uppercase hover:bg-red-500 hover:text-white transition-all">Excluir</button>
-                        </div>` : ''}
-                    </div>`).join('') || `<p class="text-xs text-gray-500">Nenhum pedido ainda.</p>`;
-            }
+            const { data, error } = await sb.from('pedidos_materiais').select('*').order('id', { ascending: false });
+            if (error) return falha(error, 'carregar os materiais');
+            // pendentes primeiro; dentro de cada grupo, os mais novos primeiro
+            data.sort((a, b) => (a.status === 'pendente' ? 0 : 1) - (b.status === 'pendente' ? 0 : 1));
+            cache.pedidos = data;
+            document.getElementById('lista-pedidos-container').innerHTML = data.map((p, i) => `
+                <div class="card-main p-6 md:p-8 bg-white/[0.02] ${p.urgencia === 'critica' ? 'border-critica' : (p.urgencia === 'media' ? 'border-media' : 'border-planeada')} ${p.status === 'pendente' ? '' : 'opacity-60'}">
+                    <p class="font-bold text-white uppercase text-sm break-words">${esc(p.material)}</p>
+                    <p class="text-[11px] text-gray-500 uppercase font-black mb-1">Qtd: ${esc(p.quantidade)}</p>
+                    <p class="text-[9px] text-gray-600 uppercase font-bold mb-4">${esc(dataBR(p.created_at))}</p>
+                    <span class="text-[9px] font-black px-2 py-1 rounded uppercase ${p.status === 'aprovado' ? 'bg-green-500/10 text-green-400' : 'bg-white/5 text-gray-400'}">${esc(p.status)}</span>
+                    ${ehAdmin() && p.status === 'pendente' ? `
+                    <div class="flex gap-2 border-t border-white/5 pt-4 mt-4">
+                        <button onclick="abrirModalAprovacaoMaterial(${i})" class="flex-1 bg-green-500/10 text-green-500 text-[8px] font-black py-2 rounded uppercase hover:bg-green-500 hover:text-white transition-all">Aprovar</button>
+                        <button onclick="excluirPedido(${i})" class="flex-1 bg-red-500/10 text-red-500 text-[8px] font-black py-2 rounded uppercase hover:bg-red-500 hover:text-white transition-all">Excluir</button>
+                    </div>` : ''}
+                </div>`).join('') || `<p class="text-xs text-gray-500">Nenhum pedido ainda.</p>`;
         }
 
         function gerarRelatorioMateriais() {
+            if (!cache.pedidos.length) return toast('Não há pedidos para o relatório.', 'erro');
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.text("RELATÓRIO DE MATERIAIS - GP OBRA", 14, 15);
+            doc.setFontSize(9); doc.text("Gerado em " + new Date().toLocaleString('pt-BR'), 14, 21);
             const nomesUrg = { critica: 'Crítica', media: 'Média', planeada: 'Planeada' };
             doc.autoTable({
-                startY: 25, theme: 'striped',
-                head: [['Material', 'Quantidade', 'Urgência', 'Status']],
-                body: cache.pedidos.map(p => [p.material || '', p.quantidade || '', nomesUrg[p.urgencia] || p.urgencia || '', p.status || '']),
+                startY: 27, theme: 'striped',
+                head: [['Data', 'Material', 'Quantidade', 'Urgência', 'Status']],
+                body: cache.pedidos.map(p => [dataBR(p.created_at), p.material || '', p.quantidade || '', nomesUrg[p.urgencia] || p.urgencia || '', p.status || '']),
                 headStyles: { fillColor: [255, 183, 197], textColor: [0, 0, 0] }
             });
             doc.save('Materiais_Obra.pdf');
         }
 
-        function abrirModalAprovacaoMaterial(i) {
-            const p = cache.pedidos[i]; if (!p) return;
-            pedidoParaAprovar = { id: p.id, material: p.material };
-            document.getElementById('label-material-aprov').innerText = "Material: " + (p.material || '');
-            document.getElementById('valor-material-final').value = '';
-            document.getElementById('cupom-material-file').value = '';
-            document.getElementById('status-cupom').classList.add('hidden');
-            arquivoCupom = null;
-            abrirModal('modal-finalizar-compra');
-        }
-
-        function previewCupomMaterial(e) {
-            arquivoCupom = e.target.files[0] || null;
-            document.getElementById('status-cupom').classList.toggle('hidden', !arquivoCupom);
-        }
-
-        async function confirmarAprovacaoComFinanceiro() {
-            const valor = parseFloat(document.getElementById('valor-material-final').value);
-            if (!valor || isNaN(valor) || valor <= 0 || !arquivoCupom) return alert("Informe o valor e anexe o cupom.");
-            ocupado('btn-confirmar-compra', true);
-            try {
-                const url = await uploadArquivo(arquivoCupom, 'cupons');
-                const { error: e1 } = await sb.from('obra_financeiro').insert([{ descricao: `COMPRA: ${pedidoParaAprovar.material}`, valor_pago: valor, cupom_url: url }]);
-                if (e1) throw e1;
-                const { error: e2 } = await sb.from('pedidos_materiais').update({ status: 'aprovado' }).eq('id', pedidoParaAprovar.id);
-                if (e2) throw e2;
-                fecharModal('modal-finalizar-compra');
-                alert("Compra aprovada e lançada no financeiro!");
-                carregarPedidos(); carregarFinanceiro();
-            } catch (err) { alert("Erro ao aprovar: " + err.message); }
-            finally { ocupado('btn-confirmar-compra', false); }
-        }
-
         async function excluirPedido(i) {
             const p = cache.pedidos[i]; if (!p) return;
-            if (confirm(`Deseja realmente excluir o pedido "${p.material}"?`)) {
-                const { error } = await sb.from('pedidos_materiais').delete().eq('id', p.id);
-                if (error) return alert("Erro ao excluir: " + error.message);
-                carregarPedidos();
-            }
+            if (!confirm(`Deseja realmente excluir o pedido "${p.material}"?`)) return;
+            const { error } = await sb.from('pedidos_materiais').delete().eq('id', p.id);
+            if (error) return falha(error, 'excluir o pedido');
+            carregarPedidos(); toast('Pedido excluído.');
         }
 
         async function enviarSolicitacaoMaterial() {
             const m = document.getElementById('mat-nome').value.trim();
             const q = document.getElementById('mat-qtd').value.trim();
-            if (!m || !q) return alert("Preencha material e quantidade.");
+            if (!m || !q) return toast("Preencha material e quantidade.", 'erro');
             ocupado('btn-enviar-pedido', true);
             const { error } = await sb.from('pedidos_materiais').insert([{ material: m, quantidade: q, status: 'pendente', urgencia: urgenciaSelecionada }]);
             ocupado('btn-enviar-pedido', false);
-            if (error) return alert("Erro ao enviar: " + error.message);
+            if (error) return falha(error, 'enviar o pedido');
             document.getElementById('mat-nome').value = ''; document.getElementById('mat-qtd').value = '';
-            fecharModal('modal-pedido'); carregarPedidos();
+            fecharModal('modal-pedido'); carregarPedidos(); toast('Pedido enviado!');
         }
 
         // --- UTILITÁRIOS ---
@@ -687,6 +863,15 @@
         function abrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
         async function sairSistema() { await sb.auth.signOut(); localStorage.removeItem('gp_obra_session'); location.reload(); }
+
+        // Fechar janelas com Esc ou clicando fora
+        document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown', e => { if (e.target === m) fecharModal(m.id); }));
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            const abertos = document.querySelectorAll('.modal:not(.hidden)');
+            if (abertos.length) abertos.forEach(m => fecharModal(m.id));
+            else if (chatAberto()) toggleChat();
+        });
 
         async function atualizarFotoPerfil(e) {
             const file = e.target.files[0]; e.target.value = ''; if (!file) return;
@@ -697,12 +882,13 @@
                 userState.avatar = url;
                 document.getElementById('user-avatar-img').src = url;
                 document.getElementById('modal-user-img').src = url;
-            } catch (err) { alert("Erro ao trocar foto: " + err.message); }
+                toast('Foto atualizada!');
+            } catch (err) { falha(err, 'trocar a foto'); }
         }
 
         function inscreverRealtime() {
             sb.channel('global_updates')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_mensagens' }, (p) => renderMsg(p.new))
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_mensagens' }, (p) => mensagemNovaChat(p.new))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'obra_cronograma' }, () => carregarCronograma())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_materiais' }, () => carregarPedidos())
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'obra_financeiro' }, () => carregarFinanceiro())
